@@ -767,3 +767,19 @@ body.hammer, body.hammer #gl{
   .t-s i{font-size:clamp(15px,4.6vw,20px);}
   .tick u{font-size:7.5px;letter-spacing:.18em;}
 }
+
+/* A default scrollbar against aged paper is a chrome-grey stripe down the
+   margin. Make it a thin warm line that belongs to the letter. */
+#sheet .sheet-card{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(201,149,107,.45) transparent;
+}
+#sheet .sheet-card::-webkit-scrollbar{width:7px;}
+#sheet .sheet-card::-webkit-scrollbar-track{background:transparent;}
+#sheet .sheet-card::-webkit-scrollbar-thumb{
+  background:rgba(201,149,107,.38);border-radius:4px;
+  border:2px solid transparent;background-clip:content-box;
+}
+#sheet .sheet-card::-webkit-scrollbar-thumb:hover{background:rgba(201,149,107,.62);background-clip:content-box;}
+#sheet.paper .sheet-card{scrollbar-color:rgba(120,84,44,.45) transparent;}
+#sheet.paper .sheet-card::-webkit-scrollbar-thumb{background:rgba(120,84,44,.40);background-clip:content-box;}
