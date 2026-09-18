@@ -507,11 +507,32 @@ body.hammer, body.hammer #gl{
    Dark ink on paper — light text on a dark card is a screen, not a letter.
    ══════════════════════════════════════════════════════════════ */
 #sheet.paper .sheet-card{
-  background:transparent;border:0;box-shadow:none;padding:0;overflow:visible;
+  background:transparent;border:0;box-shadow:none;
+  /* NOT `overflow:visible` — the shorthand wipes out the base card's
+     overflow-y:auto and a long letter then has no way to scroll. Give the
+     paper's drop shadow a little room with padding instead of letting it
+     spill out of a clipped box. */
+  padding:0 12px 14px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
 }
+/* Anything absolutely positioned inside a scrolling box scrolls away with
+   the content, so the close button has to sit outside it. */
 #sheet.paper #sheetClose{
-  top:-6px;right:-4px;color:rgba(246,234,220,.7);
-  background:rgba(12,7,5,.6);backdrop-filter:blur(6px);
+  position:fixed;
+  top:calc(var(--pad) + env(safe-area-inset-top,0px));
+  right:var(--pad);
+  color:rgba(246,234,220,.82);
+  background:rgba(12,7,5,.82);backdrop-filter:blur(8px);
+  border:1px solid var(--edge);
+}
+
+/* a hint that the letter keeps going */
+#sheet.paper::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;height:64px;
+  pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(5,3,8,.55));
 }
 
 .letter{position:relative;}

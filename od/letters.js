@@ -275,6 +275,24 @@ OD.Letters = function(renderer, post, env){
       target.classList.add('done');
     }
 
+    /* A long letter writes itself off the bottom of the page, so the page
+       follows the nib — but only while you are still at the bottom. Scroll
+       up to reread something and it stops chasing you until you come back. */
+    const box = document.querySelector('#sheet .sheet-card');
+    let stick = true;
+    if(box){
+      box.addEventListener('scroll', ()=>{
+        stick = (box.scrollHeight - box.scrollTop - box.clientHeight) < 90;
+      });
+    }
+    function followNib(){
+      if(!box || !stick || !cursor.parentNode) return;
+      const cr = cursor.getBoundingClientRect();
+      const br = box.getBoundingClientRect();
+      const over = cr.bottom - (br.bottom - 56);
+      if(over > 0) box.scrollTop += over;
+    }
+
     if(speed === 0){ finish(); }
     else {
       pEls[0].appendChild(cursor);
@@ -288,7 +306,12 @@ OD.Letters = function(renderer, post, env){
           pEls[pi].textContent = txt.slice(0, ci);
           pEls[pi].appendChild(cursor);
           if(ci % 3 === 0) Snd.ink();
-          if(ci >= txt.length){ pi++; ci = 0; if(pi < paras.length) pEls[pi].appendChild(cursor); }
+          if(ci % 6 === 0) followNib();
+          if(ci >= txt.length){
+            pi++; ci = 0;
+            if(pi < paras.length) pEls[pi].appendChild(cursor);
+            followNib();
+          }
         }
       });
     }
