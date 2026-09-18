@@ -78,7 +78,7 @@ OD.Cave = function(renderer, post, env, mood){
     new THREE.SphereGeometry(620, 32, 22),
     new THREE.ShaderMaterial({
       side:THREE.BackSide, depthWrite:false, fog:false,
-      uniforms:{ uTop:{value:new THREE.Color(mood.top)}, uBot:{value:new THREE.Color(mood.bot)} },
+      uniforms:{ uTop:{value:OD.sc(mood.top)}, uBot:{value:OD.sc(mood.bot)} },
       vertexShader:`varying vec3 vP; void main(){ vP=normalize(position);
         gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
       fragmentShader:`varying vec3 vP; uniform vec3 uTop,uBot;
@@ -106,7 +106,7 @@ OD.Cave = function(renderer, post, env, mood){
     for(let i=0;i<n;i++){
       const m=new THREE.Mesh(new THREE.PlaneGeometry(420,420),
         new THREE.MeshBasicMaterial({ map:t, transparent:true, opacity:rnd(.16,.34),
-          depthWrite:false, color:new THREE.Color(mood.bot), fog:false }));
+          depthWrite:false, color:OD.sc(mood.bot), fog:false }));
       m.rotation.x=-Math.PI/2;
       m.position.set(rnd(-40,40), lerp(Y_CLOUD_LO,Y_CLOUD_HI,i/(n-1)), rnd(-40,40));
       m.userData={ sp:rnd(.02,.07) };
@@ -120,7 +120,7 @@ OD.Cave = function(renderer, post, env, mood){
   scene.add(cam);
   for(let i=0;i<(TIER==='mobile'?26:56);i++){
     const s=new THREE.Sprite(new THREE.SpriteMaterial({
-      map:STREAK, color:0xDDEEFF, transparent:true, opacity:0,
+      map:STREAK, color: OD.sc(0xDDEEFF), transparent:true, opacity:0,
       blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false, fog:false }));
     const a=Math.random()*TAU, r=rnd(1.6,11);
     s.position.set(Math.cos(a)*r, rnd(-9,9), -rnd(4,26));
@@ -134,8 +134,8 @@ OD.Cave = function(renderer, post, env, mood){
     new THREE.PlaneGeometry(900, 900, 40, 40),
     new THREE.ShaderMaterial({
       side:THREE.DoubleSide, transparent:true, fog:false,
-      uniforms:{ uT:{value:0}, uShallow:{value:new THREE.Color(0x2E7E9C)},
-                 uDeep:{value:new THREE.Color(0x05283C)}, uSun:{value:new THREE.Color(mood.sun)} },
+      uniforms:{ uT:{value:0}, uShallow:{value:OD.sc(0x2E7E9C)},
+                 uDeep:{value:OD.sc(0x05283C)}, uSun:{value:OD.sc(mood.sun)} },
       vertexShader:`
         varying vec3 vP; varying vec2 vUv; uniform float uT;
         void main(){
@@ -172,7 +172,7 @@ OD.Cave = function(renderer, post, env, mood){
   const rays = new THREE.Group(); scene.add(rays);
   for(let i=0;i<(TIER==='mobile'?4:9);i++){
     const m=new THREE.Mesh(new THREE.ConeGeometry(rnd(3,9), rnd(40,70), 5, 1, true),
-      new THREE.MeshBasicMaterial({ color:0x9FE0FF, transparent:true, opacity:rnd(.05,.12),
+      new THREE.MeshBasicMaterial({ color: OD.sc(0x9FE0FF), transparent:true, opacity:rnd(.05,.12),
         blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false }));
     const a=Math.random()*TAU, r=rnd(4,30);
     m.position.set(Math.cos(a)*r, -26, Math.sin(a)*r);
@@ -182,16 +182,16 @@ OD.Cave = function(renderer, post, env, mood){
   }
 
   /* ── light ────────────────────────────────────────────────── */
-  const above = new THREE.DirectionalLight(0xCFEBFF, 1.4);
+  const above = new THREE.DirectionalLight(OD.sc(0xCFEBFF), 1.4);
   above.position.set(-18, 90, 22); scene.add(above);
-  const amb = new THREE.AmbientLight(0x12384E, 1.4); scene.add(amb);
-  const bioA = new THREE.PointLight(0x46E8D0, 0, 60, 2); bioA.position.set(0,-90,0); scene.add(bioA);
-  const bioB = new THREE.PointLight(0x9A6AFF, 0, 60, 2); bioB.position.set(0,-150,0); scene.add(bioB);
-  const doorLight = new THREE.PointLight(0x7FE8FF, 0, 40, 2); doorLight.position.set(0,Y_DOOR,6); scene.add(doorLight);
+  const amb = new THREE.AmbientLight(OD.sc(0x12384E), 1.4); scene.add(amb);
+  const bioA = new THREE.PointLight(OD.sc(0x46E8D0), 0, 60, 2); bioA.position.set(0,-90,0); scene.add(bioA);
+  const bioB = new THREE.PointLight(OD.sc(0x9A6AFF), 0, 60, 2); bioB.position.set(0,-150,0); scene.add(bioB);
+  const doorLight = new THREE.PointLight(OD.sc(0x7FE8FF), 0, 40, 2); doorLight.position.set(0,Y_DOOR,6); scene.add(doorLight);
 
   /* ── the cave shaft ───────────────────────────────────────── */
   const rockMat = new THREE.MeshStandardMaterial({
-    color:0x1C2A30, roughness:.98, metalness:0,
+    color: OD.sc(0x1C2A30), roughness:.98, metalness:0,
     normalMap:OD.MAT.rockNormal, normalScale:new THREE.Vector2(1.3,1.3),
     side:THREE.BackSide, envMapIntensity:.25
   });
@@ -211,7 +211,7 @@ OD.Cave = function(renderer, post, env, mood){
 
     // the floor
     const f = new THREE.Mesh(new THREE.CircleGeometry(24, 30),
-      new THREE.MeshStandardMaterial({ color:0x16232A, roughness:1,
+      new THREE.MeshStandardMaterial({ color: OD.sc(0x16232A), roughness:1,
         normalMap:OD.MAT.rockNormal, normalScale:new THREE.Vector2(1.6,1.6) }));
     f.rotation.x = -Math.PI/2; f.position.y = Y_DEEP;
     scene.add(f);
@@ -226,7 +226,7 @@ OD.Cave = function(renderer, post, env, mood){
     const col = [0x46E8D0, 0x9A6AFF, 0x4FA8FF, 0xFF7AB8][i%4];
     const c = new THREE.Mesh(
       new THREE.ConeGeometry(rnd(.3,.8), h, 6),
-      new THREE.MeshStandardMaterial({ color:0x1A2A32, roughness:.9,
+      new THREE.MeshStandardMaterial({ color: OD.sc(0x1A2A32), roughness:.9,
         emissive:col, emissiveIntensity:.9 })
     );
     c.position.set(Math.cos(a)*r, Y_MOUTH + rnd(-3,3), Math.sin(a)*r);
@@ -255,7 +255,7 @@ OD.Cave = function(renderer, post, env, mood){
   const jellies = [];
   for(let i=0;i<(TIER==='mobile'?7:16);i++){
     const s=new THREE.Sprite(new THREE.SpriteMaterial({
-      map:JELLY, color:0xCFF4FF, transparent:true, opacity:.55,
+      map:JELLY, color: OD.sc(0xCFF4FF), transparent:true, opacity:.55,
       blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
     const a=Math.random()*TAU, r=rnd(3,15);
     s.position.set(Math.cos(a)*r, rnd(Y_DEEP+10, Y_MOUTH-4), Math.sin(a)*r);
@@ -308,7 +308,7 @@ OD.Cave = function(renderer, post, env, mood){
   const bio = (function(){
     const n = TIER==='mobile'?150:380;
     const p=new Float32Array(n*3), sd=new Float32Array(n), cl=new Float32Array(n*3);
-    const pal=[new THREE.Color(0x46E8D0), new THREE.Color(0x9A6AFF), new THREE.Color(0x4FA8FF)];
+    const pal=[OD.sc(0x46E8D0), OD.sc(0x9A6AFF), OD.sc(0x4FA8FF)];
     for(let i=0;i<n;i++){
       const a=Math.random()*TAU, r=Math.random()*19;
       p[i*3]=Math.cos(a)*r; p[i*3+1]=rnd(Y_DEEP, Y_WATER-4); p[i*3+2]=Math.sin(a)*r;
@@ -392,7 +392,7 @@ OD.Cave = function(renderer, post, env, mood){
 
   const slab = new THREE.Mesh(
     new THREE.CylinderGeometry(17.5, 17.5, 2.4, 30),
-    new THREE.MeshStandardMaterial({ color:0x243238, roughness:.96,
+    new THREE.MeshStandardMaterial({ color: OD.sc(0x243238), roughness:.96,
       normalMap:OD.MAT.rockNormal, normalScale:new THREE.Vector2(1.5,1.5) })
   );
   door.add(slab);
@@ -433,7 +433,7 @@ OD.Cave = function(renderer, post, env, mood){
         new THREE.CylinderGeometry(rOuter, rOuter, 2.9, 48, 1, true),
         new THREE.MeshStandardMaterial({
           map: ringTexture(def.set), roughness:.6, metalness:.25,
-          emissive:0x0A2A34, emissiveIntensity:.9, side:THREE.DoubleSide,
+          emissive: OD.sc(0x0A2A34), emissiveIntensity:.9, side:THREE.DoubleSide,
           envMapIntensity:.8
         })
       );
@@ -518,7 +518,7 @@ OD.Cave = function(renderer, post, env, mood){
 
   function bubbleMat(){
     return new THREE.MeshPhysicalMaterial({
-      color:0xCFF0FF, roughness:.05, metalness:0,
+      color: OD.sc(0xCFF0FF), roughness:.05, metalness:0,
       transmission: OD.tr(.92), thickness:1.4,
       transparent:true, opacity: OD.tr(.92) ? .55 : .30,
       clearcoat:1, envMap:env, envMapIntensity:2.0
@@ -543,7 +543,7 @@ OD.Cave = function(renderer, post, env, mood){
     g.add(ball);
 
     const inner = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.7),
-      new THREE.MeshBasicMaterial({ color:0xFFFFFF, transparent:true, opacity:.94,
+      new THREE.MeshBasicMaterial({ color: OD.sc(0xFFFFFF), transparent:true, opacity:.94,
         side:THREE.DoubleSide, fog:false }));
     g.add(inner);
     g.userData.inner = inner;

@@ -31,7 +31,7 @@ OD.Hub = function(renderer, post, env, mood){
   const scene = new THREE.Scene();
   scene.environment = env;
   const cam = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, .3, 1200);
-  scene.fog = new THREE.Fog(new THREE.Color(MOOD.mid).lerp(new THREE.Color(MOOD.bot),.45), 150, 470);
+  scene.fog = new THREE.Fog(OD.sc(MOOD.mid).lerp(OD.sc(MOOD.bot),.45), 150, 470);
 
   /* ── sky ──────────────────────────────────────────────────── */
   const sky = new THREE.Mesh(
@@ -39,8 +39,8 @@ OD.Hub = function(renderer, post, env, mood){
     new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false,
       uniforms:{
-        uTop:{value:new THREE.Color(MOOD.top)}, uMid:{value:new THREE.Color(MOOD.mid)},
-        uBot:{value:new THREE.Color(MOOD.bot)}, uSun:{value:new THREE.Color(MOOD.sun)},
+        uTop:{value:OD.sc(MOOD.top)}, uMid:{value:OD.sc(MOOD.mid)},
+        uBot:{value:OD.sc(MOOD.bot)}, uSun:{value:OD.sc(MOOD.sun)},
         uNight:{value:MOOD.night}, uT:{value:0}, uTint:{value:0}
       },
       vertexShader:`varying vec3 vP; void main(){ vP = normalize(position);
@@ -92,11 +92,11 @@ OD.Hub = function(renderer, post, env, mood){
   scene.add(sky);
 
   /* ── light ────────────────────────────────────────────────── */
-  const sun = new THREE.DirectionalLight(MOOD.sun, MOOD.id==='night' ? .45 : 1.55);
+  const sun = new THREE.DirectionalLight(OD.sc(MOOD.sun), MOOD.id==='night' ? .45 : 1.55);
   sun.position.set(-90, 56, 58);
   scene.add(sun);
-  scene.add(new THREE.AmbientLight(new THREE.Color(MOOD.mid), MOOD.id==='night' ? .5 : .8));
-  scene.add(new THREE.HemisphereLight(new THREE.Color(MOOD.bot), 0x1B1208, .6));
+  scene.add(new THREE.AmbientLight(OD.sc(MOOD.mid), MOOD.id==='night' ? .5 : .8));
+  scene.add(new THREE.HemisphereLight(OD.sc(MOOD.bot), OD.sc(0x1B1208), .6));
 
   /* ── distant range ────────────────────────────────────────── */
   (function mountains(){
@@ -111,7 +111,7 @@ OD.Hub = function(renderer, post, env, mood){
     }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(v,3));
-    const c = new THREE.Color(MOOD.top).lerp(new THREE.Color(MOOD.mid), .38);
+    const c = OD.sc(MOOD.top).lerp(OD.sc(MOOD.mid), .38);
     scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
       color:c, transparent:true, opacity:.6, fog:false })));
   })();
@@ -121,7 +121,7 @@ OD.Hub = function(renderer, post, env, mood){
     const geo = new THREE.IcosahedronGeometry(r, TIER==='mobile'?2:3);
     const pos = geo.attributes.position;
     const cols = new Float32Array(pos.count*3);
-    const top = new THREE.Color(topHex), rock = new THREE.Color(rockHex);
+    const top = OD.sc(topHex), rock = OD.sc(rockHex);
     const plateau = r*0.14;
     for(let i=0;i<pos.count;i++){
       let x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
@@ -185,11 +185,11 @@ OD.Hub = function(renderer, post, env, mood){
     const cab = new THREE.Mesh(new THREE.BoxGeometry(3.8,2.9,3.3), OD.MAT.wood);
     cab.position.y = 9.2; cab.rotation.y = .42; th.add(cab);
     const win = new THREE.Mesh(new THREE.CircleGeometry(.72,18),
-      new THREE.MeshBasicMaterial({ color:0xFFCE96 }));
+      new THREE.MeshBasicMaterial({ color: OD.sc(0xFFCE96) }));
     win.position.set(1.52,9.4,1.30); win.rotation.y=.42; th.add(win);
     const roof = new THREE.Mesh(new THREE.ConeGeometry(3.2,1.9,4), OD.MAT.woodDark);
     roof.position.y = 11.5; roof.rotation.y = .42+Math.PI/4; th.add(roof);
-    const tl = new THREE.PointLight(0xFFB460, 2.2, 26, 2); tl.position.set(0,9.3,0); th.add(tl);
+    const tl = new THREE.PointLight(OD.sc(0xFFB460), 2.2, 26, 2); tl.position.set(0,9.3,0); th.add(tl);
     for(let i=0;i<9;i++){
       const s = new THREE.Sprite(warmGlow(0xFFC98A));
       s.scale.setScalar(1.7);
@@ -201,7 +201,7 @@ OD.Hub = function(renderer, post, env, mood){
     // crystal tower
     const ct = groups.tower;
     const crystalMat = new THREE.MeshPhysicalMaterial({
-      color:0xD6E2F5, roughness:.06, metalness:0, transmission: OD.tr(.9), thickness:3.0,
+      color: OD.sc(0xD6E2F5), roughness:.06, metalness:0, transmission: OD.tr(.9), thickness:3.0,
       transparent:true, opacity:.9, clearcoat:1, ior:1.7, envMap:env, envMapIntensity:2.2
     });
     const spire = new THREE.Mesh(new THREE.ConeGeometry(3.2, 24, 6), crystalMat);
@@ -210,7 +210,7 @@ OD.Hub = function(renderer, post, env, mood){
     s2.position.set(3.4,7.0,1.5); s2.rotation.z=-.16; ct.add(s2);
     const s3 = new THREE.Mesh(new THREE.ConeGeometry(1.1, 7, 5), crystalMat);
     s3.position.set(-2.8,5.2,-1.4); s3.rotation.z=.2; ct.add(s3);
-    const cl = new THREE.PointLight(0xBFD8FF, 1.8, 40, 2); cl.position.y=14; ct.add(cl);
+    const cl = new THREE.PointLight(OD.sc(0xBFD8FF), 1.8, 40, 2); cl.position.y=14; ct.add(cl);
 
     // campfire
     const cf = groups.campfire;
@@ -224,11 +224,11 @@ OD.Hub = function(renderer, post, env, mood){
     const flame = new THREE.Sprite(warmGlow(0xFF9640));
     flame.scale.set(3.4,5.0,1); flame.position.y=3.6; cf.add(flame);
     cf.userData.flame = flame;
-    const fl = new THREE.PointLight(0xFF8A3C, 3.2, 40, 2); fl.position.y=3.6; cf.add(fl);
+    const fl = new THREE.PointLight(OD.sc(0xFF8A3C), 3.2, 40, 2); fl.position.y=3.6; cf.add(fl);
     cf.userData.flight = fl;
     for(let i=0;i<11;i++){
       const t = new THREE.Mesh(new THREE.ConeGeometry(1.2,5.0,5),
-        new THREE.MeshStandardMaterial({ color:0x1E2C1C, roughness:1, envMapIntensity:.3 }));
+        new THREE.MeshStandardMaterial({ color: OD.sc(0x1E2C1C), roughness:1, envMapIntensity:.3 }));
       const a=i/11*TAU + .3;
       t.position.set(Math.cos(a)*7.0, 3.8, Math.sin(a)*7.0);
       cf.add(t);
@@ -237,13 +237,13 @@ OD.Hub = function(renderer, post, env, mood){
     // lantern pad
     const lp = groups.lanterns;
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(4.8,5.0,.7,18),
-      new THREE.MeshStandardMaterial({ color:0x8A8272, roughness:.94,
+      new THREE.MeshStandardMaterial({ color: OD.sc(0x8A8272), roughness:.94,
         normalMap:OD.MAT.rockNormal, normalScale:new THREE.Vector2(.5,.5) }));
     pad.position.y=1.7; lp.add(pad);
     const stand = new THREE.Mesh(new THREE.CylinderGeometry(.18,.22,1.8,7), OD.MAT.woodDark);
     stand.position.y=2.9; lp.add(stand);
     const lant = new THREE.Mesh(new THREE.CylinderGeometry(.78,.66,1.4,9),
-      new THREE.MeshStandardMaterial({ color:0xE8D8B8, roughness:.8, transparent:true, opacity:.66 }));
+      new THREE.MeshStandardMaterial({ color: OD.sc(0xE8D8B8), roughness:.8, transparent:true, opacity:.66 }));
     lant.position.y=4.4; lp.add(lant);
     lp.userData.lantern = lant;
   })();
@@ -252,7 +252,7 @@ OD.Hub = function(renderer, post, env, mood){
   (function bridges(){
     if(!Q.bridge) return;
     const pts=[], cols=[];
-    const c1=new THREE.Color(0xFFD9A8), c2=new THREE.Color(0xF3A0B8);
+    const c1=OD.sc(0xFFD9A8), c2=OD.sc(0xF3A0B8);
     ISLANDS.filter(i=>!i.viaRune && i.key!=='tree').forEach((is,idx)=>{
       const curve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(0,2,0),
@@ -289,7 +289,7 @@ OD.Hub = function(renderer, post, env, mood){
     const m = new THREE.ShaderMaterial({
       transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
       uniforms:{ uT:{value:0}, uMap:{value:OD.SPRITE}, uPR:{value:renderer.getPixelRatio()},
-        uCol:{value:new THREE.Color(MOOD.id==='night'?0xC4F58E:0xFFD9A8)}, uNight:{value:MOOD.night} },
+        uCol:{value:OD.sc(MOOD.id==='night'?0xC4F58E:0xFFD9A8)}, uNight:{value:MOOD.night} },
       vertexShader:`
         attribute float aSeed; uniform float uT,uPR,uNight; varying float vA;
         void main(){
@@ -335,12 +335,12 @@ OD.Hub = function(renderer, post, env, mood){
     const SPEC = [
       { h:1.0,  rad:.09, depth:0, leaves:2,    spread:.4 },
       { h:2.6,  rad:.17, depth:1, leaves:16,   spread:1.1 },
-      { h:5.0,  rad:.34, depth:2, leaves:130,  spread:2.2 },
-      { h:7.8,  rad:.56, depth:3, leaves:440,  spread:3.4 },
-      { h:10.6, rad:.80, depth:4, leaves:950,  spread:4.7 },
-      { h:13.8, rad:1.14,depth:4, leaves:1550, spread:6.1 },
-      { h:16.0, rad:1.36,depth:5, leaves:1950, spread:7.0 },
-      { h:17.8, rad:1.58,depth:5, leaves:2500, spread:7.7 }
+      { h:5.0,  rad:.34, depth:2, leaves:320,  spread:2.2 },
+      { h:7.8,  rad:.56, depth:3, leaves:1100, spread:3.4 },
+      { h:10.6, rad:.80, depth:4, leaves:2400, spread:4.7 },
+      { h:13.8, rad:1.14,depth:4, leaves:4200, spread:6.1 },
+      { h:16.0, rad:1.36,depth:5, leaves:5600, spread:7.0 },
+      { h:17.8, rad:1.58,depth:5, leaves:7000, spread:7.7 }
     ];
     const LEAFCOL = {
       spring:[0x8FCB6B,0xB8E08C,0xF6B7CE], summer:[0x4E9E4A,0x6FBF5A,0x9ED97E],
@@ -400,47 +400,106 @@ OD.Hub = function(renderer, post, env, mood){
         }
       } else tips.push(p.clone());
 
+      /* ── the canopy ──────────────────────────────────────────
+         A handful of small points at the branch tips reads as a bare
+         winter tree. A canopy needs mass: big overlapping clumps, packed
+         densely enough to overdraw, thinning toward the inside the way a
+         real crown is hollow, and shaded so the whole thing has a lit
+         side and a shadowed side rather than looking flat.            */
       const LN = Math.min(S.leaves, Q.leaves);
       if(LN>0 && tips.length){
         const lp=new Float32Array(LN*3), lc=new Float32Array(LN*3),
-              ls=new Float32Array(LN), sd=new Float32Array(LN);
-        const pal = LEAFCOL.map(h=>new THREE.Color(h));
+              ls=new Float32Array(LN), sd=new Float32Array(LN),
+              ln=new Float32Array(LN*3);
+        const pal = LEAFCOL.map(h=>OD.sc(h));
+
+        // the volume the crown actually occupies
+        const cen = new THREE.Vector3();
+        tips.forEach(t=>cen.add(t));
+        cen.multiplyScalar(1/tips.length);
+        let rad = 0;
+        tips.forEach(t=>{ rad = Math.max(rad, t.distanceTo(cen)); });
+        rad = Math.max(rad, S.spread*.8);
+
+        const tmp = new THREE.Vector3();
         for(let i=0;i<LN;i++){
-          const t = tips[(Math.random()*tips.length)|0];
-          lp[i*3]  = t.x + rnd(-1,1)*S.spread*.30;
-          lp[i*3+1]= t.y + rnd(-.7,.9)*S.spread*.26;
-          lp[i*3+2]= t.z + rnd(-1,1)*S.spread*.30;
+          // two thirds cluster tightly on a tip, the rest fill the crown
+          if(i % 3){
+            const t = tips[(Math.random()*tips.length)|0];
+            const clump = S.spread*.30;
+            tmp.set(
+              t.x + rnd(-1,1)*clump,
+              t.y + rnd(-.8,.7)*clump*.85,
+              t.z + rnd(-1,1)*clump
+            );
+          } else {
+            // biased outward, so the middle stays open like a real crown
+            const u = Math.random()*TAU, v = Math.acos(rnd(-1,.55));
+            const rr = rad * (0.62 + 0.38*Math.cbrt(Math.random()));
+            tmp.set(
+              cen.x + Math.sin(v)*Math.cos(u)*rr,
+              cen.y + Math.cos(v)*rr*.80,
+              cen.z + Math.sin(v)*Math.sin(u)*rr
+            );
+          }
+          lp[i*3]=tmp.x; lp[i*3+1]=tmp.y; lp[i*3+2]=tmp.z;
+
+          // outward direction doubles as the clump's normal for shading
+          const nx=tmp.x-cen.x, ny=tmp.y-cen.y, nz=tmp.z-cen.z;
+          const nl=Math.hypot(nx,ny,nz)||1;
+          ln[i*3]=nx/nl; ln[i*3+1]=ny/nl; ln[i*3+2]=nz/nl;
+
           const c = pal[(Math.random()*pal.length)|0];
-          lc[i*3]=c.r; lc[i*3+1]=c.g; lc[i*3+2]=c.b;
-          ls[i]=rnd(.8,1.8); sd[i]=Math.random()*100;
+          const shade = 0.72 + 0.28*Math.random();
+          lc[i*3]=c.r*shade; lc[i*3+1]=c.g*shade; lc[i*3+2]=c.b*shade;
+          ls[i]=rnd(3.0, 7.2);
+          sd[i]=Math.random()*100;
         }
         const g=new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.BufferAttribute(lp,3));
         g.setAttribute('aColor', new THREE.BufferAttribute(lc,3));
         g.setAttribute('aSize', new THREE.BufferAttribute(ls,1));
         g.setAttribute('aSeed', new THREE.BufferAttribute(sd,1));
+        g.setAttribute('aNormal', new THREE.BufferAttribute(ln,3));
         leafPts = new THREE.Points(g, new THREE.ShaderMaterial({
-          transparent:true, depthWrite:false,
+          transparent:true, depthWrite:true, alphaTest:0.28,
           uniforms:{ uT:{value:0}, uMap:{value:OD.LEAF},
-                     uPR:{value:renderer.getPixelRatio()}, uFall:{value:0} },
+                     uPR:{value:renderer.getPixelRatio()}, uFall:{value:0},
+                     uSun:{value:new THREE.Vector3(-0.72,0.55,0.42).normalize()},
+                     uSunCol:{value:OD.sc(MOOD.sun)}, uSky:{value:OD.sc(MOOD.mid)} },
           vertexShader:`
-            attribute vec3 aColor; attribute float aSize, aSeed;
-            uniform float uT,uPR,uFall; varying vec3 vC; varying float vA;
+            attribute vec3 aColor, aNormal; attribute float aSize, aSeed;
+            uniform float uT,uPR,uFall; uniform vec3 uSun,uSunCol,uSky;
+            varying vec3 vC; varying float vA;
             void main(){
-              vC=aColor; vec3 p=position;
-              p.x += sin(uT*.8 + aSeed)*.24;
-              p.z += cos(uT*.7 + aSeed*1.4)*.24;
+              vec3 p = position;
+              // every clump breathes on its own phase, so the crown moves
+              // like foliage rather than like one rigid object
+              p.x += sin(uT*.75 + aSeed)*.34;
+              p.z += cos(uT*.65 + aSeed*1.4)*.34;
+              p.y += sin(uT*.50 + aSeed*2.1)*.16;
+
               float f = uFall * (0.4 + fract(aSeed));
               p.y -= f*10.0; p.x += sin(uT*2.0+aSeed)*f*2.6;
+
+              // a lit side and a shadowed side, plus sky bounce from above
+              float d = max(dot(aNormal, uSun), 0.0);
+              vec3 lit = aColor * (0.42 + 0.78*d) * uSunCol * 1.5;
+              lit += aColor * uSky * (0.22 + 0.26*max(aNormal.y,0.0));
+              vC = lit;
+
               vA = 1.0 - smoothstep(0.78,1.0,uFall);
-              vec4 mv=modelViewMatrix*vec4(p,1.0);
+              vec4 mv = modelViewMatrix*vec4(p,1.0);
               gl_PointSize = aSize*uPR*(190.0/-mv.z);
               gl_Position = projectionMatrix*mv;
             }`,
           fragmentShader:`
             uniform sampler2D uMap; varying vec3 vC; varying float vA;
-            void main(){ vec4 t=texture2D(uMap,gl_PointCoord);
-              gl_FragColor=vec4(vC, t.a*vA); if(gl_FragColor.a<.02) discard; }`
+            void main(){
+              vec4 t = texture2D(uMap, gl_PointCoord);
+              if(t.a < 0.30) discard;
+              gl_FragColor = vec4(vC, vA);
+            }`
         }));
         extras.add(leafPts);
       }
@@ -501,7 +560,7 @@ OD.Hub = function(renderer, post, env, mood){
         }
         const hut=new THREE.Mesh(new THREE.BoxGeometry(1.9,1.6,1.7), OD.MAT.wood);
         hut.position.set(1.3, SPEC[stage].h*.74, .9); hut.rotation.y=.5; extras.add(hut);
-        const hl=new THREE.PointLight(0xFFC080, .9, 12, 2);
+        const hl=new THREE.PointLight(OD.sc(0xFFC080), .9, 12, 2);
         hl.position.copy(hut.position); extras.add(hl);
       }
 
@@ -509,18 +568,167 @@ OD.Hub = function(renderer, post, env, mood){
         for(let i=0;i<14;i++){
           const cap=new THREE.Mesh(
             new THREE.SphereGeometry(rnd(.13,.26),8,6,0,TAU,0,Math.PI/2),
-            new THREE.MeshStandardMaterial({ color:0xB05A48, roughness:.9,
-              emissive: MOOD.night>.5 ? 0x2F6B4A : 0x000000, emissiveIntensity:.8 }));
+            new THREE.MeshStandardMaterial({ color: OD.sc(0xB05A48), roughness:.9,
+              emissive: OD.sc(MOOD.night>.5 ? 0x2F6B4A : 0x000000), emissiveIntensity:.8 }));
           const a=Math.random()*TAU, r=rnd(1.5,3.6);
           cap.position.set(Math.cos(a)*r,.13,Math.sin(a)*r);
           extras.add(cap);
         }
       }
+
+      hang(memList);          // new branches, so the fruit moves with them
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       FRUIT — the memories, hanging where fruit would hang.
+       Each photograph rides in a rounded pane on a short stem and
+       sways with the branch it is on. Tap one to open it.
+       ══════════════════════════════════════════════════════════ */
+    const fruit = new THREE.Group();
+    root.add(fruit);
+    const fruitTex = {};
+
+    /* a photo, masked into a rounded pane with a warm rim */
+    function paneTexture(url, done){
+      if(fruitTex[url]){ done(fruitTex[url]); return; }
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = ()=>{
+        const S = 256, r = 34;
+        const c = document.createElement('canvas'); c.width = c.height = S;
+        const g = c.getContext('2d');
+        g.beginPath();
+        g.moveTo(r,0); g.lineTo(S-r,0); g.quadraticCurveTo(S,0,S,r);
+        g.lineTo(S,S-r); g.quadraticCurveTo(S,S,S-r,S);
+        g.lineTo(r,S); g.quadraticCurveTo(0,S,0,S-r);
+        g.lineTo(0,r); g.quadraticCurveTo(0,0,r,0);
+        g.closePath(); g.clip();
+        // cover-fit, so nothing is squashed
+        const s = Math.max(S/img.width, S/img.height);
+        const w = img.width*s, h = img.height*s;
+        g.drawImage(img, (S-w)/2, (S-h)/2, w, h);
+        g.strokeStyle = 'rgba(255,214,150,.85)'; g.lineWidth = 9; g.stroke();
+        const t = new THREE.CanvasTexture(c);
+        t.encoding = THREE.sRGBEncoding;
+        fruitTex[url] = t;
+        done(t);
+      };
+      img.onerror = ()=>done(null);
+      img.src = url;
+    }
+
+    /* a fruit with nothing in it yet — an invitation */
+    function blankTexture(){
+      if(fruitTex.__blank) return fruitTex.__blank;
+      const S = 128;
+      const c = document.createElement('canvas'); c.width = c.height = S;
+      const g = c.getContext('2d');
+      const grd = g.createRadialGradient(S*.38, S*.34, 4, S*.5, S*.5, S*.56);
+      grd.addColorStop(0, '#FFE0A8'); grd.addColorStop(.55, '#E8913F'); grd.addColorStop(1, '#9A4A1E');
+      g.fillStyle = grd;
+      g.beginPath(); g.arc(S/2, S/2, S*.46, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255,240,210,.5)';
+      g.beginPath(); g.ellipse(S*.36, S*.32, S*.10, S*.06, -.6, 0, TAU); g.fill();
+      const t = new THREE.CanvasTexture(c);
+      t.encoding = THREE.sRGBEncoding;
+      fruitTex.__blank = t;
+      return t;
+    }
+
+    function clearFruit(){
+      while(fruit.children.length){
+        const c = fruit.children[0];
+        fruit.remove(c);
+      }
+    }
+
+    function hang(list){
+      clearFruit();
+      if(!tips.length) return;
+
+      const withPhoto = list.filter(m => m.asset_url && m.type !== 'voice');
+      const items = withPhoto.length ? withPhoto.slice(-10) : [];
+      const count = items.length || 5;          // always bear something
+
+      // spread them around the crown rather than clumping on one branch
+      const picks = [];
+      const stride = Math.max(1, Math.floor(tips.length / count));
+      for(let i=0; i<count; i++){
+        picks.push(tips[Math.min(tips.length-1, i*stride + ((i*37)%stride))]);
+      }
+
+      picks.forEach((tip, i)=>{
+        const mem = items[i] || null;
+        const g = new THREE.Group();
+
+        const stemLen = rnd(.7, 1.5);
+        const stem = new THREE.Mesh(
+          new THREE.CylinderGeometry(.035, .045, stemLen, 5),
+          OD.MAT.bark
+        );
+        stem.position.y = -stemLen/2;
+        g.add(stem);
+
+        const size = mem ? 1.75 : .85;
+        const pane = new THREE.Mesh(
+          new THREE.PlaneGeometry(size, size),
+          new THREE.MeshBasicMaterial({
+            map: mem ? blankTexture() : blankTexture(),
+            transparent:true, side:THREE.DoubleSide, toneMapped:false
+          })
+        );
+        pane.position.y = -stemLen - size/2 + .06;
+        g.add(pane);
+
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: OD.GLOW, color: OD.sc(mem ? 0xFFD9A8 : 0xFF9A4A),
+          transparent:true, opacity: mem ? .32 : .5,
+          blending:THREE.AdditiveBlending, depthWrite:false }));
+        glow.scale.setScalar(size*2.6);
+        glow.position.copy(pane.position);
+        g.add(glow);
+
+        if(mem){
+          paneTexture(mem.asset_url, t=>{
+            if(t){ pane.material.map = t; pane.material.needsUpdate = true; }
+          });
+        }
+
+        g.position.copy(tip);
+        g.userData = { mem, ph: Math.random()*TAU, base: tip.clone(), pane, isFruit:true };
+        fruit.add(g);
+      });
+    }
+
+    /* The memories can arrive before the tree has branches to hang them on,
+       and the tree is rebuilt whenever the stage changes — so keep the last
+       list and re-hang from both directions. */
+    let memList = [];
+    let stopFruit = OD.Store.watch('memories', list=>{
+      list.sort((a,b)=> new Date(a.date) - new Date(b.date));
+      memList = list;
+      hang(memList);
+    }, 'date', 'asc');
+
+    function swayFruit(T){
+      fruit.children.forEach(f=>{
+        const u = f.userData;
+        f.position.set(
+          u.base.x + Math.sin(T*.75 + u.ph)*.34,
+          u.base.y + Math.sin(T*.50 + u.ph*2.1)*.16,
+          u.base.z + Math.cos(T*.65 + u.ph*1.4)*.34
+        );
+        f.rotation.z = Math.sin(T*.9 + u.ph)*.10;
+        // the pane turns to face you wherever you orbit to
+        u.pane.lookAt(cam.position);
+      });
     }
 
     return {
       build, stageOf, name:i=>NAME[i], era:i=>ERA[i], height:i=>SPEC[i].h,
-      get leaves(){ return leafPts; }, get flies(){ return flyPts; }
+      get leaves(){ return leafPts; }, get flies(){ return flyPts; },
+      fruit, swayFruit, rehang: hang,
+      dispose(){ stopFruit && stopFruit(); }
     };
   })();
 
@@ -645,6 +853,7 @@ OD.Hub = function(renderer, post, env, mood){
       Tree.leaves.material.uniforms.uFall.value = leafFall;
     }
     if(Tree.flies) Tree.flies.material.uniforms.uT.value = T;
+    Tree.swayFruit(T);
     if(lanternSky) lanternSky.update(dt, T);
 
     rig.target.lerp(rig.want, dt*2.6);
@@ -710,6 +919,16 @@ OD.Hub = function(renderer, post, env, mood){
     if(wasDrag) return;
     pt.set((x/innerWidth)*2-1, -(y/innerHeight)*2+1);
     ray.setFromCamera(pt, cam);
+
+    // fruit sit inside the tree island, so they have to be asked about first
+    // or the walk up the parent chain just flies you to the island
+    const fr = ray.intersectObjects(Tree.fruit.children, true);
+    if(fr.length){
+      let o = fr[0].object;
+      while(o && !o.userData.isFruit) o = o.parent;
+      if(o){ pickFruit(o.userData.mem); return; }
+    }
+
     if(ray.intersectObject(rune, false).length){ OD.Nav.go('cave'); return; }
     const hits = ray.intersectObjects(Object.keys(groups).map(k=>groups[k]), true);
     if(!hits.length) return;
@@ -722,6 +941,35 @@ OD.Hub = function(renderer, post, env, mood){
   function zoom(d){
     rig.wantDist = clamp(rig.wantDist + d*.06, 18, 240);
     gsap.killTweensOf(rig,'wantDist');
+  }
+
+  /* picking a fruit off the tree */
+  function pickFruit(mem){
+    Snd.snap();
+    OD.buzz(12);
+    if(!mem){
+      OD.Sheet.open(`
+        <div class="eyebrow">this one is still green</div>
+        <h2>Nothing in it yet</h2>
+        <p class="lead">The tree bears your photographs. Put one into the Crystal
+        Tower and it ripens here, hanging where you can reach it.</p>
+        <div class="rowbtn"><button class="btn primary" id="goTower">add a memory</button></div>
+      `);
+      const b = $('#goTower');
+      if(b) b.addEventListener('click', ()=>{ OD.Sheet.close(); OD.Nav.go('tower'); });
+      return;
+    }
+    const media = mem.asset_url
+      ? (mem.type === 'video'
+          ? `<video class="memmedia" src="${OD.esc(mem.asset_url)}" controls playsinline></video>`
+          : `<img class="memmedia" src="${OD.esc(mem.asset_url)}" alt="${OD.esc(mem.title||'a memory')}">`)
+      : '';
+    OD.Sheet.open(`
+      <div class="eyebrow">picked from the tree · ${OD.esc(Days.fmt(mem.date))}</div>
+      <h2>${OD.esc(mem.title || '')}</h2>
+      ${media}
+      ${mem.caption ? `<p class="lead">${OD.esc(mem.caption)}</p>` : ''}
+    `, { wide:true });
   }
 
   function resize(){ cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); }

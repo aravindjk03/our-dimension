@@ -18,7 +18,7 @@ const EMOTION = OD.EMOTION = {
 OD.Letters = function(renderer, post, env){
   const scene = new THREE.Scene();
   scene.environment = env;
-  scene.background = new THREE.Color(0x140C06);
+  scene.background = OD.sc(0x140C06);
   scene.fog = new THREE.Fog(0x140C06, 14, 46);
 
   const cam = new THREE.PerspectiveCamera(47, innerWidth/innerHeight, .1, 120);
@@ -41,12 +41,12 @@ OD.Letters = function(renderer, post, env){
 
   /* the round window, with night outside */
   const winGlow = new THREE.Mesh(new THREE.CircleGeometry(2.4, 32),
-    new THREE.MeshBasicMaterial({ color:0x2E4A78 }));
+    new THREE.MeshBasicMaterial({ color: OD.sc(0x2E4A78) }));
   winGlow.position.set(0, 3.2, -10.85); room.add(winGlow);
   const winFrame = new THREE.Mesh(new THREE.TorusGeometry(2.5, .22, 8, 32), OD.MAT.woodDark);
   winFrame.position.copy(winGlow.position); room.add(winFrame);
   const moon = new THREE.Sprite(new THREE.SpriteMaterial({
-    map:OD.GLOW, color:0xBFD4FF, transparent:true, opacity:.75,
+    map:OD.GLOW, color: OD.sc(0xBFD4FF), transparent:true, opacity:.75,
     blending:THREE.AdditiveBlending, depthWrite:false }));
   moon.scale.setScalar(2.2); moon.position.set(-.9, 4.0, -10.7); room.add(moon);
 
@@ -59,22 +59,22 @@ OD.Letters = function(renderer, post, env){
     l.position.set(p[0],1.2,p[1]); desk.add(l);
   });
   const inkwell = new THREE.Mesh(new THREE.CylinderGeometry(.34,.40,.46,14),
-    new THREE.MeshPhysicalMaterial({ color:0x14121C, roughness:.14, clearcoat:1, envMap:env, envMapIntensity:1.4 }));
+    new THREE.MeshPhysicalMaterial({ color: OD.sc(0x14121C), roughness:.14, clearcoat:1, envMap:env, envMapIntensity:1.4 }));
   inkwell.position.set(-1.5, 2.72, 0); desk.add(inkwell);
   const quill = new THREE.Mesh(new THREE.ConeGeometry(.10, 2.3, 7),
-    new THREE.MeshStandardMaterial({ color:0xF0E2CA, roughness:.8 }));
+    new THREE.MeshStandardMaterial({ color: OD.sc(0xF0E2CA), roughness:.8 }));
   quill.position.set(-1.35, 3.7, .12); quill.rotation.z = .42; quill.rotation.x = -.18;
   desk.add(quill);
   desk.userData.quill = quill;
 
-  const deskGlow = new THREE.PointLight(0xFFB470, 2.0, 12, 2);
+  const deskGlow = new THREE.PointLight(OD.sc(0xFFB470), 2.0, 12, 2);
   deskGlow.position.set(0, 3.6, 0); desk.add(deskGlow);
 
   /* ── lighting ─────────────────────────────────────────────── */
-  scene.add(new THREE.AmbientLight(0x3A2412, 1.5));
-  const hearth = new THREE.PointLight(0xFFA855, 3.0, 30, 2);
+  scene.add(new THREE.AmbientLight(OD.sc(0x3A2412), 1.5));
+  const hearth = new THREE.PointLight(OD.sc(0xFFA855), 3.0, 30, 2);
   hearth.position.set(0, 2, 2); scene.add(hearth);
-  const cool = new THREE.DirectionalLight(0x6E86C0, .35);
+  const cool = new THREE.DirectionalLight(OD.sc(0x6E86C0), .35);
   cool.position.set(0, 4, -10); scene.add(cool);
 
   /* fairy lights strung round the ceiling */
@@ -123,7 +123,7 @@ OD.Letters = function(renderer, post, env){
   let letters = [], nodes = [];
   let focused = null;
 
-  const chainMat = new THREE.MeshStandardMaterial({ color:0x8A8A94, roughness:.42, metalness:.85, envMap:env, envMapIntensity:1.3 });
+  const chainMat = new THREE.MeshStandardMaterial({ color: OD.sc(0x8A8A94), roughness:.42, metalness:.85, envMap:env, envMapIntensity:1.3 });
 
   function isLocked(l){
     return !!(l.unlock_date && new Date(l.unlock_date).getTime() > Date.now());
@@ -137,7 +137,7 @@ OD.Letters = function(renderer, post, env){
     const threadH = 3.2 + (i%4)*1.1;
     const thread = new THREE.Mesh(
       new THREE.CylinderGeometry(.012,.012,threadH,4),
-      new THREE.MeshBasicMaterial({ color:0xD9B87A, transparent:true, opacity:.5 }));
+      new THREE.MeshBasicMaterial({ color: OD.sc(0xD9B87A), transparent:true, opacity:.5 }));
     thread.position.y = threadH/2;
     g.add(thread);
 
@@ -392,7 +392,7 @@ OD.Letters = function(renderer, post, env){
       n.children.forEach(ch=>{
         if(ch.material && 'opacity' in ch.material){
           const base = ch === n.userData.glow ? (n.userData.letter.read?.18:.45)
-                     : (ch.geometry && ch.geometry.type==='CylinderGeometry' && ch.material.color && ch.material.color.getHex()===0xD9B87A ? .5 : 1);
+                     : (ch.geometry && ch.geometry.type==='CylinderGeometry' ? .5 : 1);
           gsap.to(ch.material, { opacity: base, duration:.7 });
         }
       });

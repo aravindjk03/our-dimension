@@ -20,9 +20,9 @@ const COARSE  = OD.COARSE  = matchMedia('(pointer:coarse)').matches;
 const REDUCED = OD.REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TIER    = OD.TIER    = innerWidth < 768 ? 'mobile' : innerWidth < 1024 ? 'tablet' : 'desktop';
 const Q = OD.Q = {
-  mobile : { dust:260, shards:9,  dpr:0.8,  leaves:1200, motes:140, bridge:26, tex:512,  bloom:false, blurSteps:1, aniso:2 },
-  tablet : { dust:520, shards:15, dpr:1,    leaves:2000, motes:220, bridge:38, tex:1024, bloom:true,  blurSteps:2, aniso:4 },
-  desktop: { dust:900, shards:22, dpr:Math.min(devicePixelRatio,2), leaves:2900, motes:320, bridge:54, tex:1024, bloom:true, blurSteps:3, aniso:8 }
+  mobile : { dust:260, shards:9,  dpr:0.8,  leaves:2600, motes:70, bridge:26, tex:512,  bloom:false, blurSteps:1, aniso:2 },
+  tablet : { dust:520, shards:15, dpr:1,    leaves:4200, motes:110, bridge:38, tex:1024, bloom:true,  blurSteps:2, aniso:4 },
+  desktop: { dust:900, shards:22, dpr:Math.min(devicePixelRatio,2), leaves:7000, motes:150, bridge:54, tex:1024, bloom:true, blurSteps:3, aniso:8 }
 }[TIER];
 
 /* ── maths ──────────────────────────────────────────────────── */
@@ -33,6 +33,17 @@ const rnd   = OD.rnd   = (a,b)=> a+Math.random()*(b-a);
 const smooth= OD.smooth= t=> t*t*(3-2*t);
 /* transmission is expensive on phones; fall back to plain translucency there */
 const tr = OD.tr = v => TIER==='mobile' ? 0 : v;
+
+/* ── colour space ────────────────────────────────────────────
+   The composite shader does the tone mapping and the sRGB encode, so the
+   renderer hands it LINEAR light. A hex literal picked by eye is an sRGB
+   value: fed in raw it is treated as linear, then encoded again, and the
+   whole world washes out to milk — pale skies, chalky ground, fog like
+   fresh snow. Every colour literal meant as "this is what it should look
+   like" goes through here first.                                        */
+const sc = OD.sc = function(hex){
+  return new THREE.Color(hex).convertSRGBToLinear();
+};
 
 function hash(x,y,z){ const n = Math.sin(x*127.1 + y*311.7 + z*74.7)*43758.5453; return n-Math.floor(n); }
 const noise3 = OD.noise3 = function(x,y,z){
@@ -289,7 +300,7 @@ OD.buildMaterials = function(){
   MAT.chocolate = new THREE.MeshPhysicalMaterial({
     map: choc.albedo, normalMap: choc.normal, roughnessMap: choc.rough,
     normalScale: new THREE.Vector2(.55,.55),
-    color: 0xFFFFFF, roughness: 1.0, metalness: .04,
+    color: OD.sc(0xFFFFFF), roughness: 1.0, metalness: .04,
     clearcoat: .68, clearcoatRoughness: .16,
     envMapIntensity: 1.35
   });
@@ -418,8 +429,8 @@ OD.Post = function(renderer){
   const compMat = new THREE.ShaderMaterial({
     uniforms:{
       tDiffuse:{value:null}, tBloom0:{value:null}, tBloom1:{value:null}, tBloom2:{value:null},
-      uBloom:{value:0.85}, uExposure:{value:1.08}, uVignette:{value:1.0},
-      uGrain:{value:0.045}, uAberr:{value:0.0016}, uTime:{value:0}, uSteps:{value:STEPS},
+      uBloom:{value:0.85}, uExposure:{value:1.0}, uVignette:{value:1.0},
+      uGrain:{value:0.011}, uAberr:{value:0.0012}, uTime:{value:0}, uSteps:{value:STEPS},
       uTint:{value:new THREE.Color(0xFFFFFF)}, uFade:{value:0.0}, uFadeCol:{value:new THREE.Color(0x000000)}
     },
     vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
@@ -678,6 +689,14 @@ OD.Snd = (function(){
     match(){ noise(.22,'highpass',5200,1800,.4,.9); },
     seal(){ noise(.5,'lowpass',900,140,.5,.7); tone(90,.4,'sine',.22); },
     rumble(){ noise(1.5,'lowpass',260,50,.85,.6); tone(42,1.3,'sine',.40,26); },
+    /* the moment it gives: a soft wet give, and something sagging */
+    melt(){
+      noise(1.1,'lowpass',900,180,.34,.7);
+      tone(150,1.5,'sine',.22,52);
+      tone(96,2.2,'triangle',.14,38);
+    },
+    /* liquid running */
+    pour(){ noise(2.2,'bandpass',420,1500,.30,.9); noise(1.6,'lowpass',600,120,.22,.6); },
     glass(){ tone(1760,1.4,'sine',.14,2093); tone(2640,1.1,'sine',.06); },
     chime(f){
       if(!ctx||!on) return;

@@ -75,7 +75,7 @@ OD.LanternSky = function(scene, opts){
       const landmark = ((idx+1) % 50) === 0;
       const col = w.author === 'her' ? ROSE : GOLD;
       const m = new THREE.SpriteMaterial({
-        map: LANTERN_TEX, color: col, transparent:true,
+        map: LANTERN_TEX, color: OD.sc(col), transparent:true,
         opacity: landmark ? 1 : .88,
         blending: THREE.AdditiveBlending, depthWrite:false
       });
@@ -151,15 +151,15 @@ OD.Lanterns = function(renderer, post, env, mood){
   cam.position.set(0, 7, 20);
 
   const night = mood.night > .5;
-  scene.fog = new THREE.Fog(new THREE.Color(mood.mid).lerp(new THREE.Color(mood.bot),.5), 90, 400);
+  scene.fog = new THREE.Fog(OD.sc(mood.mid).lerp(OD.sc(mood.bot),.5), 90, 400);
 
   /* sky */
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(500, 40, 26),
     new THREE.ShaderMaterial({
       side:THREE.BackSide, depthWrite:false,
-      uniforms:{ uTop:{value:new THREE.Color(mood.top)}, uMid:{value:new THREE.Color(mood.mid)},
-        uBot:{value:new THREE.Color(mood.bot)}, uNight:{value:mood.night}, uT:{value:0} },
+      uniforms:{ uTop:{value:OD.sc(mood.top)}, uMid:{value:OD.sc(mood.mid)},
+        uBot:{value:OD.sc(mood.bot)}, uNight:{value:mood.night}, uT:{value:0} },
       vertexShader:`varying vec3 vP; void main(){ vP=normalize(position);
         gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
       fragmentShader:`
@@ -180,14 +180,14 @@ OD.Lanterns = function(renderer, post, env, mood){
   );
   scene.add(sky);
 
-  scene.add(new THREE.AmbientLight(new THREE.Color(mood.mid), night?.55:.85));
-  const key = new THREE.DirectionalLight(mood.sun, night?.4:1.2);
+  scene.add(new THREE.AmbientLight(OD.sc(mood.mid), night?.55:.85));
+  const key = new THREE.DirectionalLight(OD.sc(mood.sun), night?.4:1.2);
   key.position.set(-40,40,30); scene.add(key);
 
   /* the platform */
   const pad = new THREE.Mesh(
     new THREE.CylinderGeometry(7.5, 7.9, 1.1, 28),
-    new THREE.MeshStandardMaterial({ color:0x8A8272, roughness:.95,
+    new THREE.MeshStandardMaterial({ color: OD.sc(0x8A8272), roughness:.95,
       normalMap:OD.MAT.rockNormal, normalScale:new THREE.Vector2(.7,.7), envMapIntensity:.5 })
   );
   pad.position.y = -1;
@@ -195,8 +195,8 @@ OD.Lanterns = function(renderer, post, env, mood){
 
   const rim = new THREE.Mesh(
     new THREE.TorusGeometry(7.6, .18, 8, 40),
-    new THREE.MeshStandardMaterial({ color:0xC9956B, roughness:.5, metalness:.3,
-      emissive:0x3A2410, envMapIntensity:1.2 })
+    new THREE.MeshStandardMaterial({ color: OD.sc(0xC9956B), roughness:.5, metalness:.3,
+      emissive: OD.sc(0x3A2410), envMapIntensity:1.2 })
   );
   rim.rotation.x = Math.PI/2; rim.position.y = -.42; scene.add(rim);
 
@@ -213,9 +213,9 @@ OD.Lanterns = function(renderer, post, env, mood){
   scene.add(lantern);
 
   const paperMat = new THREE.MeshStandardMaterial({
-    map: OD.MAT.paperMap, color:0xFFE9C6, roughness:.9, metalness:0,
+    map: OD.MAT.paperMap, color: OD.sc(0xFFE9C6), roughness:.9, metalness:0,
     transparent:true, opacity:.9, side:THREE.DoubleSide,
-    emissive:0x000000, emissiveIntensity:1
+    emissive: OD.sc(0x000000), emissiveIntensity:1
   });
   const body = new THREE.Mesh(new THREE.CylinderGeometry(1.0, .82, 1.9, 14, 1, true), paperMat);
   lantern.add(body);
@@ -225,10 +225,10 @@ OD.Lanterns = function(renderer, post, env, mood){
   capBot.rotation.x=Math.PI/2; capBot.position.y=-.95; lantern.add(capBot);
 
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({
-    map:OD.GLOW, color:0xFFC070, transparent:true, opacity:0,
+    map:OD.GLOW, color: OD.sc(0xFFC070), transparent:true, opacity:0,
     blending:THREE.AdditiveBlending, depthWrite:false }));
   flame.scale.set(1.2,1.8,1); flame.position.y=-.5; lantern.add(flame);
-  const flameLight = new THREE.PointLight(0xFFB060, 0, 24, 2);
+  const flameLight = new THREE.PointLight(OD.sc(0xFFB060), 0, 24, 2);
   flameLight.position.y=-.4; lantern.add(flameLight);
 
   // the text, painted onto the paper as a shadow from the inside
@@ -320,7 +320,7 @@ OD.Lanterns = function(renderer, post, env, mood){
     gsap.fromTo(flame.material, { opacity:0 }, { opacity:1, duration:.5, ease:'power2.out' });
     gsap.to(flameLight, { intensity:3.4, duration:.7 });
     gsap.to(paperMat, { emissiveIntensity:1, duration:.1 });
-    paperMat.emissive.setHex(0x4A2A0E);
+    paperMat.emissive.copy(OD.sc(0x4A2A0E));
     gsap.fromTo(lantern.scale, { x:.86, y:.7, z:.86 }, { x:1, y:1, z:1, duration:1.1, ease:'elastic.out(1,.6)' });
     OD.buzz(24);
     OD.toast(OD.COARSE ? 'swipe up to let it go' : 'press Release, or swipe up');
@@ -362,7 +362,7 @@ OD.Lanterns = function(renderer, post, env, mood){
     lantern.rotation.set(0,0,0);
     flame.material.opacity = 0;
     flameLight.intensity = 0;
-    paperMat.emissive.setHex(0x000000);
+    paperMat.emissive.copy(OD.sc(0x000000));
     paperMat.map = OD.MAT.paperMap;
     paperMat.needsUpdate = true;
   }

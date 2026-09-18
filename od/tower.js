@@ -12,24 +12,24 @@ const H_BOTTOM = 0, H_TOP = 74;
 OD.Tower = function(renderer, post, env){
   const scene = new THREE.Scene();
   scene.environment = env;
-  scene.background = new THREE.Color(0x0A0C16);
+  scene.background = OD.sc(0x0A0C16);
   scene.fog = new THREE.FogExp2(0x0A0C16, .0125);
 
   const cam = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, .1, 500);
 
   /* ── light ────────────────────────────────────────────────── */
-  scene.add(new THREE.AmbientLight(0x3A4266, 1.5));
-  const above = new THREE.DirectionalLight(0xFFF0DC, 1.6);
+  scene.add(new THREE.AmbientLight(OD.sc(0x3A4266), 1.5));
+  const above = new THREE.DirectionalLight(OD.sc(0xFFF0DC), 1.6);
   above.position.set(6, 60, 10); scene.add(above);
-  const under = new THREE.PointLight(0x8A5AC9, 3.0, 60, 2);
+  const under = new THREE.PointLight(OD.sc(0x8A5AC9), 3.0, 60, 2);
   under.position.set(0, 4, 0); scene.add(under);
-  const crown = new THREE.PointLight(0xFFE7C4, 3.4, 60, 2);
+  const crown = new THREE.PointLight(OD.sc(0xFFE7C4), 3.4, 60, 2);
   crown.position.set(0, H_TOP, 0); scene.add(crown);
 
   /* the colour of the crystal at a given height */
-  const AMETHYST = new THREE.Color(0x8A5AC9);
-  const QUARTZ   = new THREE.Color(0xE9A8C4);
-  const DIAMOND  = new THREE.Color(0xFFF4E2);
+  const AMETHYST = OD.sc(0x8A5AC9);
+  const QUARTZ   = OD.sc(0xE9A8C4);
+  const DIAMOND  = OD.sc(0xFFF4E2);
   function crystalColor(t){
     return t < .5 ? AMETHYST.clone().lerp(QUARTZ, t/.5)
                   : QUARTZ.clone().lerp(DIAMOND, (t-.5)/.5);
@@ -42,7 +42,7 @@ OD.Tower = function(renderer, post, env){
   const SEGS = TIER==='mobile' ? 90 : 160;
 
   const crystalMat = new THREE.MeshPhysicalMaterial({
-    color:0xFFFFFF, vertexColors:true, roughness:.10, metalness:0,
+    color: OD.sc(0xFFFFFF), vertexColors:true, roughness:.10, metalness:0,
     transmission: OD.tr(.82), thickness:2.2, ior:1.62, transparent:true, opacity:.94,
     clearcoat:1, clearcoatRoughness:.08, envMap:env, envMapIntensity:2.4,
     side:THREE.DoubleSide
@@ -181,7 +181,7 @@ OD.Tower = function(renderer, post, env){
     // whatever is inside it
     const inner = new THREE.Mesh(
       new THREE.PlaneGeometry(1.25, .9),
-      new THREE.MeshBasicMaterial({ color:0xFFFFFF, transparent:true, opacity:.9, side:THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ color: OD.sc(0xFFFFFF), transparent:true, opacity:.9, side:THREE.DoubleSide })
     );
     inner.position.z = .02;
     g.add(inner);
@@ -189,7 +189,7 @@ OD.Tower = function(renderer, post, env){
 
     if(m.thumb || m.asset_url){
       photoTexture(m.thumb || m.asset_url, tx=>{
-        if(tx){ inner.material.map = tx; inner.material.color.setHex(0xFFFFFF); inner.material.needsUpdate = true; }
+        if(tx){ inner.material.map = tx; inner.material.color.copy(OD.sc(0xFFFFFF)); inner.material.needsUpdate = true; }
       });
     } else {
       // a milestone or a voice note gets a drawn face instead
@@ -206,7 +206,7 @@ OD.Tower = function(renderer, post, env){
     }
 
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-      map:OD.GLOW, color:crystalColor(t).getHex(), transparent:true, opacity:.5,
+      map:OD.GLOW, color:crystalColor(t), transparent:true, opacity:.5,
       blending:THREE.AdditiveBlending, depthWrite:false }));
     glow.scale.setScalar(4.0);
     g.add(glow);

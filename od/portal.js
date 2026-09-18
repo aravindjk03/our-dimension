@@ -1,11 +1,19 @@
 /* ══════════════════════════════════════════════════════════════
    THE CHOCOLATE HEART PORTAL
-   Voronoi fracture · tempered-chocolate PBR · propagating cracks
+
+   It does not break. It softens, sags, runs in columns, and finally
+   gives way into a pool of liquid chocolate with the light coming up
+   through it.
+
+   The melt is a vertex displacement patched into the standard physical
+   material through onBeforeCompile, so the chocolate keeps its real
+   lighting, clearcoat and environment reflections the whole way down —
+   and it costs nothing on the CPU.
    ══════════════════════════════════════════════════════════════ */
 (function(OD){
 "use strict";
 
-const { TAU, clamp, lerp, rnd, smooth, Q, TIER, REDUCED, COARSE, Snd, $ } = OD;
+const { TAU, clamp, lerp, rnd, smooth, Q, TIER, REDUCED, Snd, $ } = OD;
 
 OD.Portal = function(renderer, post, env){
 
@@ -17,231 +25,164 @@ OD.Portal = function(renderer, post, env){
   cam.position.set(0, 0, 11.4);
 
   /* ── lights ───────────────────────────────────────────────── */
-  const key = new THREE.DirectionalLight(0xFFD4A0, 2.1);
-  key.position.set(-5.4, 6.6, 5.4);
-  scene.add(key);
+  const key = new THREE.DirectionalLight(OD.sc(0xFFD4A0), 2.4);
+  key.position.set(-5.4, 6.6, 5.4); scene.add(key);
 
-  const fill = new THREE.DirectionalLight(0xC9956B, .55);
-  fill.position.set(5.2, -1.6, 3.2);
-  scene.add(fill);
+  const fill = new THREE.DirectionalLight(OD.sc(0xC9956B), .6);
+  fill.position.set(5.2, -1.6, 3.2); scene.add(fill);
 
-  const rimL = new THREE.DirectionalLight(0xFFB070, .9);
-  rimL.position.set(2.4, 1.2, -6.0);
-  scene.add(rimL);
+  const rimL = new THREE.DirectionalLight(OD.sc(0xFFB070), 1.0);
+  rimL.position.set(2.4, 1.2, -6.0); scene.add(rimL);
 
-  scene.add(new THREE.AmbientLight(0x2D1810, 1.1));
+  scene.add(new THREE.AmbientLight(OD.sc(0x2D1810), 1.2));
 
-  const core = new THREE.PointLight(0xFFE0B0, 0, 30, 1.7);
+  const core = new THREE.PointLight(OD.sc(0xFFE0B0), 0, 30, 1.7);
   scene.add(core);
 
-  /* ── the heart outline ────────────────────────────────────── */
-  const NPT = 240;
+  /* ── the heart ────────────────────────────────────────────── */
+  const NPT = 200;
   const OUTLINE = [];
   for(let i=0;i<NPT;i++){
     const t = i/NPT*TAU, st = Math.sin(t);
-    OUTLINE.push({
-      x: (16*st*st*st)/13,
-      y: (13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t))/13 - .18,
-      o: true
-    });
+    OUTLINE.push(new THREE.Vector2(
+      (16*st*st*st)/13,
+      (13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t))/13 - .18
+    ));
   }
   OUTLINE.reverse();
 
   const SCALE = TIER==='mobile' ? 1.70 : 2.05;
-  const EX = {
+  const H = 1.22;                                    // heart half-height, local
+
+  const shape = new THREE.Shape();
+  shape.moveTo(OUTLINE[0].x, OUTLINE[0].y);
+  for(let i=1;i<OUTLINE.length;i++) shape.lineTo(OUTLINE[i].x, OUTLINE[i].y);
+  shape.closePath();
+
+  const heartGeo = new THREE.ExtrudeGeometry(shape, {
     depth:.62, bevelEnabled:true, bevelThickness:.20, bevelSize:.105,
     bevelSegments: TIER==='mobile'?3:6, curveSegments:3
-  };
-
-  function shapeOf(pts){
-    const s = new THREE.Shape();
-    s.moveTo(pts[0].x, pts[0].y);
-    for(let i=1;i<pts.length;i++) s.lineTo(pts[i].x, pts[i].y);
-    s.closePath();
-    return s;
-  }
-
-  /* ── materials ────────────────────────────────────────────── */
-  const shell = OD.MAT.chocolate;
-  const broke = OD.MAT.chocolateBreak;
-  shell.envMap = env; broke.envMap = env;
-
-  /* ── whole heart, before it is broken ─────────────────────── */
-  const heartGeo = new THREE.ExtrudeGeometry(shapeOf(OUTLINE), EX);
+  });
   heartGeo.center();
-  // give the caps a usable UV set so the chocolate grain reads at the right scale
   (function fixUV(g){
     const p = g.attributes.position, uv = g.attributes.uv;
     for(let i=0;i<p.count;i++) uv.setXY(i, p.getX(i)*.42+.5, p.getY(i)*.42+.5);
     uv.needsUpdate = true;
   })(heartGeo);
-  const heart = new THREE.Mesh(heartGeo, [shell, broke]);
+
+  /* ── the melt ─────────────────────────────────────────────── */
+  const uMelt = { value: 0 };
+  const uTime = { value: 0 };
+
+  const MELT_GLSL = `
+    uniform float uMelt;
+    uniform float uMTime;
+    float hash31(vec3 p){
+      return fract(sin(dot(p, vec3(12.9898,78.233,37.719))) * 43758.5453);
+    }
+    vec3 meltPos(vec3 p){
+      float m = uMelt;
+      if(m <= 0.0001) return p;
+      float HH = ${H.toFixed(3)};
+      float h = clamp((p.y + HH) / (2.0*HH), 0.0, 1.0);   // 0 bottom, 1 top
+
+      // chocolate does not fall evenly — it runs in columns, some quicker
+      float col = hash31(floor(vec3(p.x*6.0, 0.0, p.z*6.0)));
+      float run = 0.40 + col*1.30;
+
+      // everything sinks, and the top has furthest to sink
+      p.y -= m * (0.30 + h*1.85) * HH * run;
+
+      // and spreads outward as it loses the shape
+      float spread = m*m * (1.0 - h*0.55) * 1.55;
+      p.x *= 1.0 + spread;
+      p.z *= 1.0 + spread;
+
+      // it is liquid now, so it moves
+      p.x += sin(uMTime*1.7 + p.y*2.2 + col*6.28) * m * 0.07;
+      p.z += cos(uMTime*1.5 + p.y*2.2 + col*6.28) * m * 0.07;
+
+      // it cannot sink through what it is resting on
+      float floorY = -HH*1.06;
+      p.y = max(p.y, floorY + 0.02*col);
+      // and at the end it is a pool, not a heart
+      p.y = mix(p.y, floorY + 0.05 + col*0.05, smoothstep(0.58, 1.0, m));
+      return p;
+    }
+  `;
+
+  function meltable(src){
+    const m = src.clone();
+    m.customProgramCacheKey = ()=>'od-melt';
+    m.onBeforeCompile = sh=>{
+      sh.uniforms.uMelt  = uMelt;
+      sh.uniforms.uMTime = uTime;
+      sh.vertexShader = MELT_GLSL + sh.vertexShader;
+      sh.vertexShader = sh.vertexShader.replace(
+        '#include <begin_vertex>',
+        'vec3 transformed = meltPos(vec3(position));'
+      );
+      /* As it liquefies the surface reads flatter and wetter, so lean the
+         normals toward straight up rather than trying to track the sag. */
+      sh.vertexShader = sh.vertexShader.replace(
+        '#include <beginnormal_vertex>',
+        'vec3 objectNormal = normalize(mix(vec3(normal), vec3(0.0,1.0,0.0), uMelt*0.62));'
+      );
+    };
+    return m;
+  }
+
+  const shell = meltable(OD.MAT.chocolate);  shell.envMap = env;
+  const inner = meltable(OD.MAT.chocolateBreak); inner.envMap = env;
+
+  const heart = new THREE.Mesh(heartGeo, [shell, inner]);
   heart.scale.setScalar(.0001);
   scene.add(heart);
 
-  /* ── molten interior ──────────────────────────────────────── */
-  const coreMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(1.0, 28, 20),
-    new THREE.MeshBasicMaterial({ color:0xFFE9C6 })
+  const FLOOR = -H*SCALE*1.06;
+
+  /* ── the pool it becomes ──────────────────────────────────── */
+  const pool = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 56),
+    new THREE.MeshPhysicalMaterial({
+      color: OD.sc(0x2A1408), roughness:.07, metalness:.02,
+      clearcoat:1, clearcoatRoughness:.04, envMap:env, envMapIntensity:2.0,
+      transparent:true, opacity:0
+    })
   );
-  coreMesh.visible = false;
-  scene.add(coreMesh);
+  pool.rotation.x = -Math.PI/2;
+  pool.position.y = FLOOR;
+  pool.scale.setScalar(.01);
+  scene.add(pool);
+
+  /* light rising up through it as the shell thins */
+  const rise = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: OD.GLOW, color: OD.sc(0xFFD9A8), transparent:true, opacity:0,
+    blending:THREE.AdditiveBlending, depthWrite:false
+  }));
+  rise.scale.setScalar(6);
+  scene.add(rise);
 
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: OD.GLOW, color:0xFFC98A, transparent:true, opacity:0,
+    map: OD.GLOW, color: OD.sc(0xFFC98A), transparent:true, opacity:0,
     blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false
   }));
   halo.scale.setScalar(10);
   scene.add(halo);
 
-  /* ══════════════════════════════════════════════════════════
-     VORONOI FRACTURE
-     Each shard is the heart polygon clipped by the perpendicular
-     bisector against every other seed. Interior edges then get
-     subdivided and jittered so the breaks read as chocolate
-     rather than as geometry.
-     ══════════════════════════════════════════════════════════ */
-  function inside(pt, poly){
-    let c = false;
-    for(let i=0, j=poly.length-1; i<poly.length; j=i++){
-      const a=poly[i], b=poly[j];
-      if(((a.y>pt.y)!==(b.y>pt.y)) &&
-         (pt.x < (b.x-a.x)*(pt.y-a.y)/(b.y-a.y)+a.x)) c = !c;
-    }
-    return c;
-  }
-
-  function clipBisector(poly, a, b){
-    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
-    const nx=b.x-a.x, ny=b.y-a.y;
-    const f = p => (p.x-mx)*nx + (p.y-my)*ny;   // > 0 → nearer b → discard
-    const out=[];
-    for(let i=0;i<poly.length;i++){
-      const P=poly[i], N=poly[(i+1)%poly.length];
-      const fp=f(P), fn=f(N);
-      if(fp<=0) out.push(P);
-      if((fp<0&&fn>0)||(fp>0&&fn<0)){
-        const t = fp/(fp-fn);
-        out.push({ x:P.x+(N.x-P.x)*t, y:P.y+(N.y-P.y)*t, o:false });
-      }
-    }
-    return out;
-  }
-
-  /* roughen the edges that are fresh breaks, leave the shell edge alone */
-  function roughen(poly, seedN){
-    const out = [];
-    for(let i=0;i<poly.length;i++){
-      const P=poly[i], N=poly[(i+1)%poly.length];
-      out.push(P);
-      if(P.o && N.o) continue;                     // both on the shell: keep smooth
-      const dx=N.x-P.x, dy=N.y-P.y;
-      const len=Math.hypot(dx,dy);
-      if(len < .07) continue;
-      const steps = clamp(Math.round(len/.055), 1, 6);
-      const px=-dy/len, py=dx/len;
-      for(let s=1;s<steps;s++){
-        const t=s/steps;
-        const jag = OD.noise3(P.x*6.4+seedN, P.y*6.4, t*9.1+seedN) * Math.min(.030, len*.20);
-        out.push({ x:P.x+dx*t + px*jag, y:P.y+dy*t + py*jag, o:false });
-      }
-    }
-    return out;
-  }
-
-  const N = Q.shards;
-  const seeds = [];
-  (function placeSeeds(){
-    const rng = OD.rng(20210406);
-    let guard = 0;
-    while(seeds.length < N && guard++ < 4000){
-      const p = { x: rnd(-1.05,1.05), y: rnd(-1.25,1.05) };
-      if(!inside(p, OUTLINE)) continue;
-      // keep them apart so no shard is a splinter
-      let ok = true;
-      for(const s of seeds) if(Math.hypot(s.x-p.x, s.y-p.y) < .30){ ok=false; break; }
-      if(ok) seeds.push(p);
-    }
-    // one seed deliberately near the cleft, where a real heart snaps first
-    if(seeds.length) seeds[0] = { x: rnd(-.08,.08), y: .62 };
-  })();
-
-  const shards = [];
-  const crackSegs = [];
-
-  seeds.forEach((s, si)=>{
-    let poly = OUTLINE.slice();
-    for(let j=0;j<seeds.length;j++){
-      if(j===si) continue;
-      poly = clipBisector(poly, s, seeds[j]);
-      if(poly.length < 3) break;
-    }
-    if(poly.length < 3) return;
-    poly = roughen(poly, si*7.3);
-    if(poly.length < 3) return;
-
-    // collect the fresh-break edges for the glowing crack lines
-    for(let i=0;i<poly.length;i++){
-      const P=poly[i], Nn=poly[(i+1)%poly.length];
-      if(P.o && Nn.o) continue;
-      crackSegs.push(P.x,P.y,0, Nn.x,Nn.y,0);
-    }
-
-    const g = new THREE.ExtrudeGeometry(shapeOf(poly), EX);
-    g.translate(0, 0, -(EX.depth + EX.bevelThickness)/2);
-    (function(gg){
-      const p=gg.attributes.position, uv=gg.attributes.uv;
-      for(let i=0;i<p.count;i++) uv.setXY(i, p.getX(i)*.42+.5, p.getY(i)*.42+.5);
-      uv.needsUpdate=true;
-    })(g);
-
-    const m = new THREE.Mesh(g, [shell, broke]);
-    m.visible = false;
-
-    let cx=0, cy=0;
-    poly.forEach(p=>{ cx+=p.x; cy+=p.y; });
-    cx/=poly.length; cy/=poly.length;
-
-    m.userData = {
-      c: new THREE.Vector2(cx, cy),
-      dir: new THREE.Vector3(cx, cy+.10, rnd(-.30,1.0)).normalize(),
-      vel: new THREE.Vector3(),
-      spin: new THREE.Vector3(rnd(-4,4), rnd(-4,4), rnd(-5,5)),
-      melt: Math.random() < .42,
-      mass: 0.6 + Math.random()*0.8,
-      life: 0, delay: 0
-    };
-    shards.push(m);
-    scene.add(m);
+  /* ── drips: beading on the face, then running off ─────────── */
+  const dripMat = new THREE.MeshPhysicalMaterial({
+    color: OD.sc(0x241106), roughness:.08, metalness:.02,
+    clearcoat:1, clearcoatRoughness:.05, envMap:env, envMapIntensity:1.8
   });
-
-  const shardGroup = new THREE.Group();
-  shards.forEach(s=>shardGroup.add(s));
-  scene.add(shardGroup);
-
-  /* ── the crack front ──────────────────────────────────────── */
-  const crackGeo = new THREE.BufferGeometry();
-  crackGeo.setAttribute('position', new THREE.Float32BufferAttribute(crackSegs, 3));
-  const crackMat = new THREE.ShaderMaterial({
-    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
-    uniforms:{ uImpact:{value:new THREE.Vector2(0,0)}, uFront:{value:-1}, uOp:{value:1} },
-    vertexShader:`
-      uniform vec2 uImpact; uniform float uFront; varying float vA;
-      void main(){
-        float d = distance(position.xy, uImpact);
-        vA = smoothstep(uFront + 0.22, uFront - 0.10, d);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader:`
-      varying float vA; uniform float uOp;
-      void main(){
-        if(vA <= 0.001) discard;
-        gl_FragColor = vec4(1.0, 0.86, 0.60, vA * uOp);
-      }`
-  });
-  const cracks = new THREE.LineSegments(crackGeo, crackMat);
-  cracks.visible = false;
-  scene.add(cracks);
+  const drips = [];
+  for(let i=0;i<(TIER==='mobile'?10:22);i++){
+    const d = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), dripMat);
+    d.visible = false;
+    d.userData = { t: rnd(0,5), lane: rnd(-.6,.6), r: rnd(.05,.10), falling:false, vy:0 };
+    scene.add(d); drips.push(d);
+  }
+  let dripsRunning = false;
 
   /* ── cocoa dust ───────────────────────────────────────────── */
   const DN = Q.dust;
@@ -251,7 +192,7 @@ OD.Portal = function(renderer, post, env){
   const dSize= new Float32Array(DN);
   const dSeed= new Float32Array(DN);
   const dCol = new Float32Array(DN*3);
-  const cA = new THREE.Color(0x3B1E0E), cB = new THREE.Color(0xC9956B);
+  const cA = OD.sc(0x3B1E0E), cB = OD.sc(0xC9956B);
 
   for(let i=0;i<DN;i++){
     const x=rnd(-13,13), y=rnd(-8,8), z=rnd(-6,4);
@@ -290,145 +231,84 @@ OD.Portal = function(renderer, post, env){
       varying vec3 vC; varying float vA;
       void main(){
         vec4 t = texture2D(uMap, gl_PointCoord);
-        gl_FragColor = vec4(vC * 1.6, t.a * vA * uOp);
+        gl_FragColor = vec4(vC * 1.5, t.a * vA * uOp);
         if(gl_FragColor.a < .008) discard;
       }`
   });
-  const dust = new THREE.Points(dGeo, dMat);
-  scene.add(dust);
-
-  /* ── drips ────────────────────────────────────────────────── */
-  const dripMat = new THREE.MeshPhysicalMaterial({
-    color:0x241106, roughness:.10, metalness:.02, clearcoat:1, clearcoatRoughness:.06,
-    envMap: env, envMapIntensity:1.6
-  });
-  const drips = [];
-  for(let i=0;i<(TIER==='mobile'?5:10);i++){
-    const d = new THREE.Mesh(new THREE.SphereGeometry(rnd(.04,.085), 10, 8), dripMat);
-    d.visible = false;
-    d.userData = { t: rnd(0,14), lane: rnd(-.6,.6) };
-    scene.add(d); drips.push(d);
-  }
+  scene.add(new THREE.Points(dGeo, dMat));
 
   /* ── state ────────────────────────────────────────────────── */
-  /* `t` accumulates frame deltas and drives the animation, where a smooth
-     clamped delta is what you want. `t0` is a real wall-clock stamp and drives
-     the stage transitions, so a tab left in the background comes back to the
-     stage it should be at rather than to a frozen void. */
-  const S = { t:0, t0:performance.now(), phase:'void', crackAt:0, px:0, py:0, done:false };
-  const pointer = new THREE.Vector2(-99,-99);
-  const ray = new THREE.Raycaster();
+  const S = { t:0, t0:performance.now(), phase:'void', px:0, py:0, done:false };
   let onDone = null;
 
   function onMove(x, y){
     S.px = (x/innerWidth)*2 - 1;
     S.py = -(y/innerHeight)*2 + 1;
-    pointer.set(S.px, S.py);
   }
 
-  function impactPoint(){
-    ray.setFromCamera(pointer, cam);
-    const h = ray.intersectObject(heart, false);
-    if(h.length){
-      const p = heart.worldToLocal(h[0].point.clone());
-      return new THREE.Vector2(p.x, p.y);
-    }
-    return new THREE.Vector2(S.px*1.0, S.py*1.0);
-  }
-
-  /* ── the crack ────────────────────────────────────────────── */
-  function crack(){
+  /* ══════════════════════════════════════════════════════════
+     THE MELT
+     ══════════════════════════════════════════════════════════ */
+  function crack(){                    // the name the shell calls; it melts
     if(S.phase !== 'invite') return;
-    S.phase = 'crack';
-    S.crackAt = S.t;
+    S.phase = 'melt';
 
-    Snd.crack();
-    OD.buzz([16,28,48]);
-
-    const imp = impactPoint();
-    crackMat.uniforms.uImpact.value.copy(imp);
-    crackMat.uniforms.uFront.value = 0;
-    cracks.visible = true;
-    cracks.scale.setScalar(SCALE);
-    cracks.rotation.copy(heart.rotation);
-    cracks.position.copy(heart.position);
-
-    heart.visible = false;
-    coreMesh.visible = true;
-    // Flattened in Z so the molten interior stays *inside* the shell: a round
-    // sphere pokes straight through the face of a heart this thin and reads as
-    // a white ball stuck on the front.
-    coreMesh.scale.set(SCALE*.60, SCALE*.60, SCALE*.17);
-
-    shardGroup.scale.setScalar(SCALE);
-    shardGroup.rotation.copy(heart.rotation);
-
-    let maxD = 0;
-    shards.forEach(sh=>{
-      const d = sh.userData.c.distanceTo(imp);
-      sh.userData.delay = d * 0.30;
-      maxD = Math.max(maxD, d);
-      sh.visible = true;
-      sh.position.set(0,0,0);
-      sh.rotation.set(0,0,0);
-      sh.scale.setScalar(1);
-      sh.userData.life = 0;
-      sh.userData.vel.set(0,0,0);
-    });
-
-    // the fracture races outward across the shell
-    gsap.to(crackMat.uniforms.uFront, { value: maxD + .5, duration: .80, ease:'power2.out' });
-    gsap.to(core, { intensity: 4.6, duration: .62, ease:'power2.out' });
-    gsap.to(halo.material, { opacity: .95, duration: .7, ease:'power2.out' });
-    gsap.to(dMat.uniforms.uOp, { value: 0, duration: .8 });
-    gsap.to(post.uniforms.uBloom, { value: Q.bloom ? 1.5 : 0, duration: .7 });
-
-    // three small settling snaps as it gives way
-    [.16,.34,.55].forEach(t=> gsap.delayedCall(t, ()=>Snd.snap()));
-
+    Snd.melt();
+    OD.buzz([12,40,12,60]);
     $('#portalCopy').classList.add('gone');
-    gsap.delayedCall(.84, burst);
 
-    // Safety net. Everything above rides on requestAnimationFrame, and a tab
-    // backgrounded mid-sequence has rAF throttled to almost nothing — which
-    // strands you on a cracked heart that never opens. setTimeout keeps
-    // running, so if the warp has not landed in time, finish it by hand.
+    /* Slow in, then the collapse runs away with itself — the way a thing
+       holds its shape right up to the moment it stops holding it. */
+    gsap.to(uMelt, { value: 1, duration: REDUCED ? 1.2 : 4.6, ease:'power2.in' });
+
+    // it dulls as it goes soft, then turns glossy again as liquid
+    gsap.to(shell, { roughness: .55, duration: 1.6, ease:'power1.out' });
+    gsap.to(shell, { roughness: .12, duration: 2.4, delay:1.6, ease:'power1.inOut' });
+
+    gsap.to(pool.scale, { x: SCALE*1.9, y: SCALE*1.9, z: SCALE*1.9,
+                          duration: 4.0, delay: .8, ease:'power2.out' });
+
+    gsap.to(core, { intensity: 5.0, duration: 3.2, delay: 1.2, ease:'power2.in' });
+    gsap.to(rise.material, { opacity: .85, duration: 2.6, delay: 1.6 });
+    gsap.to(rise.scale, { x:16, y:16, z:16, duration: 3.4, delay: 1.6, ease:'power2.in' });
+    gsap.to(dMat.uniforms.uOp, { value: 0, duration: 1.6 });
+
+    gsap.delayedCall(.9, ()=>{ dripsRunning = true; });
+    gsap.delayedCall(REDUCED ? 1.4 : 4.4, pour);
+
+    /* Everything above rides on requestAnimationFrame, and a backgrounded
+       tab has rAF throttled to almost nothing — which would strand you on a
+       half-melted heart. setTimeout keeps running, so finish it by hand. */
     setTimeout(()=>{
       if(S.done) return;
       gsap.globalTimeline.getChildren(true,true,true).forEach(t=>t.progress(1));
       if(S.phase !== 'warp') warp();
       setTimeout(()=>{ if(!S.done){ S.done = true; if(onDone) onDone(); } }, 2200);
-    }, 9000);
+    }, 12000);
   }
 
-  function burst(){
-    S.phase = 'fly';
-    shards.forEach(sh=>{
-      const u = sh.userData;
-      u.vel.copy(u.dir).multiplyScalar(rnd(3.0,6.2) / u.mass);
-      u.vel.z += rnd(.8, 3.0);
-    });
-    gsap.to(crackMat.uniforms.uOp, { value:0, duration:.4 });
-    gsap.to(core, { intensity: 14, duration: .9, ease:'power2.in' });
-    gsap.to(coreMesh.scale, { x:6.5, y:6.5, z:6.5, duration:1.4, ease:'power2.in' });
-    gsap.to(halo.scale, { x:70, y:70, z:70, duration:1.5, ease:'power2.in' });
-    gsap.to(post.uniforms.uExposure, { value:1.7, duration:1.3, ease:'power2.in' });
-    Snd.whoosh();
-    gsap.delayedCall(.68, warp);
+  function pour(){
+    S.phase = 'pour';
+    Snd.pour();
+    gsap.to(core, { intensity: 16, duration: 1.3, ease:'power2.in' });
+    gsap.to(halo.material, { opacity: .95, duration: 1.1 });
+    gsap.to(halo.scale, { x:64, y:64, z:64, duration: 1.5, ease:'power2.in' });
+    gsap.to(post.uniforms.uExposure, { value: 1.5, duration: 1.4, ease:'power2.in' });
+    gsap.to(post.uniforms.uBloom, { value: Q.bloom ? 1.6 : 0, duration: 1.0 });
+    gsap.delayedCall(1.0, warp);
   }
 
   function warp(){
     S.phase = 'warp';
     dMat.uniforms.uOp.value = 0;
-    gsap.to(dMat.uniforms.uOp, { value:1, duration:.3 });
+    gsap.to(dMat.uniforms.uOp, { value: 1, duration: .3 });
     for(let i=0;i<DN;i++){
       dTgt[i*3]   = dPos[i*3]   * 3.6;
       dTgt[i*3+1] = dPos[i*3+1] * 3.6;
       dTgt[i*3+2] = rnd(7, 15);
     }
     gsap.to(cam.position, { z:-8, duration:2.0, ease:'power3.in' });
-    gsap.to(post.uniforms.uAberr, { value:.010, duration:1.4, ease:'power2.in' });
-
+    gsap.to(post.uniforms.uAberr, { value:.009, duration:1.4, ease:'power2.in' });
     post.fadeTo(0xFFE9C6, 1, 1.05).delay(.62);
     gsap.delayedCall(1.95, ()=>{
       S.done = true;
@@ -437,20 +317,23 @@ OD.Portal = function(renderer, post, env){
   }
 
   /* ── frame ────────────────────────────────────────────────── */
+  const AXIS_Y = new THREE.Vector3(0,1,0);
+
   function update(dt){
     S.t += dt;
     const wall = (performance.now() - S.t0) / 1000;
     dMat.uniforms.uT.value = S.t;
+    uTime.value = S.t;
 
-    // a little handheld life in the camera the whole way through
     if(S.phase !== 'warp'){
       cam.position.x = lerp(cam.position.x, S.px*.55 + Math.sin(S.t*.31)*.13, dt*1.6);
       cam.position.y = lerp(cam.position.y, S.py*.40 + Math.cos(S.t*.27)*.10, dt*1.6);
       cam.lookAt(0,0,0);
     }
 
+    /* stage one — the void */
     if(S.phase === 'void'){
-      dMat.uniforms.uOp.value = Math.min(1, S.t/1.8);
+      dMat.uniforms.uOp.value = Math.min(1, wall/1.8);
       const mx = S.px*11, my = S.py*6.6;
       for(let i=0;i<DN;i++){
         const ix=i*3;
@@ -468,6 +351,7 @@ OD.Portal = function(renderer, post, env){
       if(wall > (REDUCED?0.8:3.0)) S.phase = 'gather';
     }
 
+    /* stage two — it gathers */
     else if(S.phase === 'gather'){
       const span = REDUCED?1.0:2.7;
       const k = clamp((wall - (REDUCED?0.8:3.0)) / span, 0, 1);
@@ -495,51 +379,45 @@ OD.Portal = function(renderer, post, env){
       heart.rotation.y += dt * 0.0873;             // five degrees a second
       heart.rotation.x = Math.sin(S.t*.30)*.05;
       heart.rotation.z = Math.cos(S.t*.22)*.025;
-      drips.forEach(d=>{
-        const u = d.userData;
-        u.t += dt*.40;
-        const ph = (u.t % 5)/5;
-        if(ph < .03) u.lane = rnd(-.62,.62);
-        d.position.set(
-          u.lane*SCALE*.88,
-          lerp(1.02, -1.20, ph)*SCALE*.86,
-          Math.cos(u.lane*1.5)*.46*SCALE
-        );
-        d.position.applyAxisAngle(new THREE.Vector3(0,1,0), heart.rotation.y);
-        const sc = Math.sin(ph*Math.PI);
-        d.scale.setScalar(clamp(sc*1.5, .001, 1.5));
-      });
     }
 
-    if(S.phase === 'crack'){
-      const el = S.t - S.crackAt;
-      shards.forEach(sh=>{
-        const u = sh.userData;
-        const k = clamp((el - u.delay)/.40, 0, 1);
-        const e = k*k;
-        sh.position.copy(u.dir).multiplyScalar(e*.20);
-        sh.rotation.z = e*.11*(u.c.x>0?1:-1);
-        sh.rotation.x = e*.06*(u.c.y>0?1:-1);
-      });
-      coreMesh.rotation.y += dt*.6;
+    /* while melting it slumps to a stop rather than going on turning */
+    if(S.phase === 'melt' || S.phase === 'pour'){
+      heart.rotation.y += dt * 0.0873 * (1 - uMelt.value);
+      heart.rotation.x = lerp(heart.rotation.x, 0, dt*1.2);
+      heart.rotation.z = lerp(heart.rotation.z, 0, dt*1.2);
+      pool.material.opacity = Math.min(.95, uMelt.value*1.5);
     }
 
-    if(S.phase === 'fly' || S.phase === 'warp'){
-      shards.forEach(sh=>{
-        const u = sh.userData;
-        u.life += dt;
-        u.vel.y -= 3.4*dt;
-        sh.position.addScaledVector(u.vel, dt);
-        sh.rotation.x += u.spin.x*dt;
-        sh.rotation.y += u.spin.y*dt;
-        sh.rotation.z += u.spin.z*dt;
-        if(u.melt && u.life > .40){
-          const m = clamp((u.life-.40)/.85, 0, 1);
-          sh.scale.setScalar(clamp(1-m, .001, 1));
-          u.vel.y -= 6.0*dt*m;
+    /* the drips */
+    const m = uMelt.value;
+    drips.forEach(d=>{
+      const u = d.userData;
+      if(u.falling){
+        u.vy -= 9.0*dt;
+        d.position.y += u.vy*dt;
+        // a falling bead stretches as it picks up speed
+        d.scale.set(u.r*11, u.r*11*(1.4 + Math.abs(u.vy)*.30), u.r*11);
+        if(d.position.y < FLOOR){
+          u.falling = false; u.vy = 0; u.t = rnd(0,3);
         }
-      });
-    }
+        return;
+      }
+      u.t += dt*(.40 + m*2.4);
+      const ph = (u.t % 5)/5;
+      if(ph < .03) u.lane = rnd(-.62,.62);
+      d.position.set(
+        u.lane*SCALE*.88*(1 + m*.6),
+        lerp(1.02, -1.20, ph)*SCALE*.86 - m*SCALE*.7,
+        Math.cos(u.lane*1.5)*.46*SCALE
+      );
+      d.position.applyAxisAngle(AXIS_Y, heart.rotation.y);
+      const sc = Math.sin(ph*Math.PI);
+      d.scale.setScalar(clamp(sc*u.r*12, .001, u.r*12));
+      if(dripsRunning && ph > .80 && Math.random() < .05){
+        u.falling = true; u.vy = -.4;
+      }
+    });
 
     if(S.phase === 'warp'){
       for(let i=0;i<DN;i++){
@@ -551,21 +429,16 @@ OD.Portal = function(renderer, post, env){
       dGeo.attributes.position.needsUpdate = true;
     }
 
-    halo.position.set(0,0,-.5);
-  }
-
-  function dispose(){
-    scene.traverse(o=>{
-      if(o.geometry) o.geometry.dispose();
-    });
-    crackGeo.dispose(); dGeo.dispose();
+    core.position.set(0, FLOOR + .5, 0);
+    rise.position.set(0, FLOOR + .3, 0);
+    halo.position.set(0, FLOOR + .8, -.5);
   }
 
   return {
-    scene, cam, update, crack, onMove, dispose,
+    scene, cam, update, crack, onMove,
     get phase(){ return S.phase; },
     set done(fn){ onDone = fn; },
-    begin(){ S.t = 0; S.t0 = performance.now(); S.phase = 'void'; }
+    begin(){ S.t = 0; S.t0 = performance.now(); S.phase = 'void'; uMelt.value = 0; }
   };
 };
 

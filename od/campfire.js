@@ -10,7 +10,7 @@ const { TAU, clamp, lerp, rnd, TIER, Snd, Store, Days, CFG, $ } = OD;
 OD.Campfire = function(renderer, post, env){
   const scene = new THREE.Scene();
   scene.environment = env;
-  scene.background = new THREE.Color(0x060810);
+  scene.background = OD.sc(0x060810);
   scene.fog = new THREE.FogExp2(0x070A14, .017);
 
   const cam = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, .1, 400);
@@ -44,7 +44,7 @@ OD.Campfire = function(renderer, post, env){
   /* ── the clearing ─────────────────────────────────────────── */
   const ground = new THREE.Mesh(
     new THREE.CircleGeometry(30, 40),
-    new THREE.MeshStandardMaterial({ color:0x1E2418, roughness:1,
+    new THREE.MeshStandardMaterial({ color: OD.sc(0x1E2418), roughness:1,
       normalMap:OD.MAT.rockNormal, normalScale:new THREE.Vector2(.9,.9) })
   );
   ground.rotation.x = -Math.PI/2; ground.position.y = -1.2;
@@ -59,7 +59,7 @@ OD.Campfire = function(renderer, post, env){
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.22,.4,h,6), OD.MAT.bark);
     trunk.position.y = h/2; t.add(trunk);
     const crown = new THREE.Mesh(new THREE.ConeGeometry(rnd(1.6,3.0), rnd(4,7), 6),
-      new THREE.MeshStandardMaterial({ color:0x16220F, roughness:1, envMapIntensity:.2 }));
+      new THREE.MeshStandardMaterial({ color: OD.sc(0x16220F), roughness:1, envMapIntensity:.2 }));
     crown.position.y = h*.86; t.add(crown);
     t.position.set(Math.cos(a)*r, -1.2, Math.sin(a)*r);
     t.userData = { ph: Math.random()*TAU, sway: rnd(.006,.018) };
@@ -76,7 +76,7 @@ OD.Campfire = function(renderer, post, env){
     fire.add(log);
   }
   const ember = new THREE.Mesh(new THREE.SphereGeometry(.62, 14, 10),
-    new THREE.MeshBasicMaterial({ color:0xFF6A18 }));
+    new THREE.MeshBasicMaterial({ color: OD.sc(0xFF6A18) }));
   ember.position.y = -.7; fire.add(ember);
 
   const flameSprites = [];
@@ -88,10 +88,10 @@ OD.Campfire = function(renderer, post, env){
     s.userData = { ph:Math.random()*TAU, sc: rnd(1.1,2.4), base:s.position.clone() };
     fire.add(s); flameSprites.push(s);
   }
-  const fireLight = new THREE.PointLight(0xFF8A3C, 6.0, 46, 2);
+  const fireLight = new THREE.PointLight(OD.sc(0xFF8A3C), 6.0, 46, 2);
   fireLight.position.y = .3; scene.add(fireLight);
-  scene.add(new THREE.AmbientLight(0x141C2A, 1.1));
-  const moonL = new THREE.DirectionalLight(0x8098C8, .35);
+  scene.add(new THREE.AmbientLight(OD.sc(0x141C2A), 1.1));
+  const moonL = new THREE.DirectionalLight(OD.sc(0x8098C8), .35);
   moonL.position.set(-20, 30, -14); scene.add(moonL);
 
   /* embers rising */
@@ -132,8 +132,8 @@ OD.Campfire = function(renderer, post, env){
   scene.add(lantern);
 
   const lanternMat = new THREE.MeshStandardMaterial({
-    color:0xFFE4B8, roughness:.85, transparent:true, opacity:.94,
-    emissive:0x6A3C10, emissiveIntensity:1, side:THREE.DoubleSide
+    color: OD.sc(0xFFE4B8), roughness:.85, transparent:true, opacity:.94,
+    emissive: OD.sc(0x6A3C10), emissiveIntensity:1, side:THREE.DoubleSide
   });
   const petals = [];
   for(let i=0;i<4;i++){
@@ -145,11 +145,11 @@ OD.Campfire = function(renderer, post, env){
     lantern.add(p); petals.push(p);
   }
   const lanternGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-    map:OD.GLOW, color:0xFFC070, transparent:true, opacity:.75,
+    map:OD.GLOW, color: OD.sc(0xFFC070), transparent:true, opacity:.75,
     blending:THREE.AdditiveBlending, depthWrite:false }));
   lanternGlow.scale.setScalar(3.4);
   lantern.add(lanternGlow);
-  const lanternLight = new THREE.PointLight(0xFFC070, 1.6, 18, 2);
+  const lanternLight = new THREE.PointLight(OD.sc(0xFFC070), 1.6, 18, 2);
   lantern.add(lanternLight);
 
   /* ── archive lanterns + wish sky ──────────────────────────── */
@@ -213,9 +213,9 @@ OD.Campfire = function(renderer, post, env){
     const both  = mine && their;
 
     if(QN.special){
-      lanternMat.color.setHex(0xFFE9B0);
-      lanternMat.emissive.setHex(0x8A5A10);
-      lanternGlow.material.color.setHex(0xFFD070);
+      lanternMat.color.copy(OD.sc(0xFFE9B0));
+      lanternMat.emissive.copy(OD.sc(0x8A5A10));
+      lanternGlow.material.color.copy(OD.sc(0xFFD070));
     }
     lanternGlow.material.opacity = both ? .95 : (mine ? .45 : .75);
     const badge = $('#fireBadge');
