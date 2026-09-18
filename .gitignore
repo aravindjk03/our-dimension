@@ -1,0 +1,7 @@
+# the superseded single-file Phase 1 build
+our-dimension.html
+
+.DS_Store
+Thumbs.db
+node_modules/
+*.log
