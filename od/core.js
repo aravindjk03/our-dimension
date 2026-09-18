@@ -885,7 +885,14 @@ OD.toast = function(msg, ms){
   OD.toast._t = setTimeout(()=>t.classList.remove('on'), ms||2800);
 };
 
-OD.buzz = function(p){ try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} };
+/* Chrome refuses navigator.vibrate before the frame has been tapped and logs an
+   error for the attempt, so wait for the first gesture rather than ask early. */
+let tapped = false;
+addEventListener('pointerdown', ()=>{ tapped = true; }, { once:true, capture:true });
+OD.buzz = function(p){
+  if(!tapped) return;
+  try{ navigator.vibrate && navigator.vibrate(p); }catch(e){}
+};
 
 /* the sheet is the one place every piece of reading and writing happens */
 OD.Sheet = (function(){
