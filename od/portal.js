@@ -311,7 +311,11 @@ OD.Portal = function(renderer, post, env){
   }
 
   /* ── state ────────────────────────────────────────────────── */
-  const S = { t:0, phase:'void', crackAt:0, px:0, py:0, done:false };
+  /* `t` accumulates frame deltas and drives the animation, where a smooth
+     clamped delta is what you want. `t0` is a real wall-clock stamp and drives
+     the stage transitions, so a tab left in the background comes back to the
+     stage it should be at rather than to a frozen void. */
+  const S = { t:0, t0:performance.now(), phase:'void', crackAt:0, px:0, py:0, done:false };
   const pointer = new THREE.Vector2(-99,-99);
   const ray = new THREE.Raycaster();
   let onDone = null;
@@ -435,6 +439,7 @@ OD.Portal = function(renderer, post, env){
   /* ── frame ────────────────────────────────────────────────── */
   function update(dt){
     S.t += dt;
+    const wall = (performance.now() - S.t0) / 1000;
     dMat.uniforms.uT.value = S.t;
 
     // a little handheld life in the camera the whole way through
@@ -460,12 +465,12 @@ OD.Portal = function(renderer, post, env){
         dPos[ix+2] = lerp(dPos[ix+2], dHome[ix+2], dt*.5);
       }
       dGeo.attributes.position.needsUpdate = true;
-      if(S.t > (REDUCED?0.8:3.0)) S.phase = 'gather';
+      if(wall > (REDUCED?0.8:3.0)) S.phase = 'gather';
     }
 
     else if(S.phase === 'gather'){
       const span = REDUCED?1.0:2.7;
-      const k = clamp((S.t - (REDUCED?0.8:3.0)) / span, 0, 1);
+      const k = clamp((wall - (REDUCED?0.8:3.0)) / span, 0, 1);
       const e = smooth(k);
       for(let i=0;i<DN;i++){
         const ix=i*3, r = dt*(1.2 + e*6.0);
@@ -560,7 +565,7 @@ OD.Portal = function(renderer, post, env){
     scene, cam, update, crack, onMove, dispose,
     get phase(){ return S.phase; },
     set done(fn){ onDone = fn; },
-    begin(){ S.t = 0; S.phase = 'void'; }
+    begin(){ S.t = 0; S.t0 = performance.now(); S.phase = 'void'; }
   };
 };
 
