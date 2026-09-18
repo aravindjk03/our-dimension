@@ -333,8 +333,7 @@ OD.Portal = function(renderer, post, env){
 
   /* A tap nudges it along too — nobody should be left hunting for a wheel. */
   function crack(){
-    if(S.phase !== 'pool') return;
-    scroll(300);
+    scroll(300);          // scroll() decides what is allowed and what banks
   }
 
   function complete(){
