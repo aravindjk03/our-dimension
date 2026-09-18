@@ -498,17 +498,21 @@ body.hammer, body.hammer #gl{
 }
 .letter-place{
   font-family:var(--f-ui);font-size:8.5px;letter-spacing:.34em;
-  text-transform:uppercase;color:rgba(92,58,24,.62);font-weight:400;
+  text-transform:uppercase;color:rgba(84,52,20,.78);font-weight:500;
 }
 .letter-date{
   font-family:var(--f-hand);font-size:clamp(17px,2.8vw,21px);
   color:rgba(74,44,20,.82);white-space:nowrap;
 }
 
-.letter-title{
-  font-family:var(--f-display);font-style:italic;font-weight:400;
+/* `.sheet-card h2` sets cream, for dark cards. On paper that is cream on
+   cream, so this has to out-specify it rather than sit beside it. */
+#sheet.paper .sheet-card h2.letter-title,
+.letter .letter-title{
+  font-family:var(--f-display);font-style:italic;font-weight:500;
   font-size:clamp(25px,4.6vw,36px);line-height:1.1;
-  margin:0 0 clamp(16px,2.6vw,22px);color:#3A2414;text-wrap:balance;
+  margin:0 0 clamp(16px,2.6vw,22px);
+  color:#3A2414;text-wrap:balance;
 }
 
 .letter-salute{
