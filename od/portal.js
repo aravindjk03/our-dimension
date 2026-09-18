@@ -322,9 +322,13 @@ OD.Portal = function(renderer, post, env){
      it draws you through itself.
      ══════════════════════════════════════════════════════════ */
   function scroll(delta){
-    if(S.phase !== 'pool') return;
+    /* Scrolling during the opening seconds used to go nowhere. Let it bank
+       instead, so an impatient hand is rewarded the moment the pool lands. */
+    if(S.phase !== 'pool' && S.phase !== 'void' && S.phase !== 'gather') return;
     S.wantForm = clamp(S.wantForm + delta * 0.00090, 0, 1);
-    if(!S.heard && S.wantForm > 0.02){ S.heard = true; Snd.gather(); }
+    if(!S.heard && S.wantForm > 0.02 && S.phase === 'pool'){
+      S.heard = true; Snd.gather();
+    }
   }
 
   /* A tap nudges it along too — nobody should be left hunting for a wheel. */

@@ -476,8 +476,13 @@ function askAtTheDoor(){
     $('#gateHer').addEventListener('click', ()=>{ Snd.wake(); showAsk(); });
     $('#askGo').addEventListener('click', ()=>{ Snd.wake(); tryAnswer(); });
     $('#askBack').addEventListener('click', backToWho);
+    /* Not every keyboard or input method reports the return key the same way,
+       so take any of the spellings rather than only e.key === 'Enter'. */
     input.addEventListener('keydown', e=>{
-      if(e.key === 'Enter'){ e.preventDefault(); tryAnswer(); }
+      if(e.key === 'Enter' || e.key === 'Return' || e.keyCode === 13){
+        e.preventDefault();
+        tryAnswer();
+      }
     });
   });
 }
