@@ -64,9 +64,17 @@ OD.Portal = function(renderer, post, env){
     bevelSegments: TIER==='mobile'?3:6, curveSegments:3
   });
   heartGeo.center();
+  /* Project the chocolate grain flat across the FACES only. The extruded side
+     wall has its own arc-length UVs; overwriting those with an x/y projection
+     gives every vertex along the extrusion the same coordinate and smears the
+     texture into a comb of vertical stripes down the rim. */
   (function fixUV(g){
     const p = g.attributes.position, uv = g.attributes.uv;
-    for(let i=0;i<p.count;i++) uv.setXY(i, p.getX(i)*.42+.5, p.getY(i)*.42+.5);
+    g.groups.forEach(gr=>{
+      if(gr.materialIndex !== 0) return;               // 0 = caps, 1 = wall
+      const end = gr.start + gr.count;
+      for(let i=gr.start;i<end;i++) uv.setXY(i, p.getX(i)*.42+.5, p.getY(i)*.42+.5);
+    });
     uv.needsUpdate = true;
   })(heartGeo);
 
@@ -247,7 +255,7 @@ OD.Portal = function(renderer, post, env){
   scene.add(new THREE.Points(dGeo, dMat));
 
   /* ── state ────────────────────────────────────────────────── */
-  const S = { t:0, t0:performance.now(), phase:'void', px:0, py:0, done:false };
+  const S = { t:0, t0:performance.now(), phase:'void', px:0, py:0, done:false, pending:false };
   let onDone = null;
 
   function onMove(x, y){
@@ -259,6 +267,9 @@ OD.Portal = function(renderer, post, env){
      THE MELT
      ══════════════════════════════════════════════════════════ */
   function crack(){                    // the name the shell calls; it melts
+    /* An impatient tap during the opening seconds used to do nothing at all.
+       Remember it instead and melt the moment the heart has finished forming. */
+    if(S.phase === 'void' || S.phase === 'gather'){ S.pending = true; return; }
     if(S.phase !== 'invite') return;
     S.phase = 'melt';
 
@@ -384,6 +395,7 @@ OD.Portal = function(renderer, post, env){
         drips.forEach(d=>d.visible = true);
         OD.buzz(18);
         Snd.chime(396);
+        if(S.pending){ S.pending = false; crack(); }
       }
     }
 
@@ -451,7 +463,7 @@ OD.Portal = function(renderer, post, env){
     scene, cam, update, crack, onMove,
     get phase(){ return S.phase; },
     set done(fn){ onDone = fn; },
-    begin(){ S.t = 0; S.t0 = performance.now(); S.phase = 'void'; uMelt.value = 0; }
+    begin(){ S.t = 0; S.t0 = performance.now(); S.phase = 'void'; S.pending = false; uMelt.value = 0; }
   };
 };
 
