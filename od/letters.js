@@ -219,51 +219,43 @@ OD.Letters = function(renderer, post, env){
      READING — the letter itself lives in HTML so the words are
      always legible, over a watercolour wash in its own colour.
      ══════════════════════════════════════════════════════════ */
-  function washCanvas(hex){
-    const c = document.createElement('canvas');
-    c.width = c.height = 256;
-    const g = c.getContext('2d');
-    g.fillStyle = '#00000000'; g.clearRect(0,0,256,256);
-    const col = hex.replace('#','');
-    const r = parseInt(col.slice(0,2),16), gg = parseInt(col.slice(2,4),16), b = parseInt(col.slice(4,6),16);
-    for(let i=0;i<26;i++){
-      const x = Math.random()*256, y = Math.random()*256, rad = rnd(30,110);
-      const grd = g.createRadialGradient(x,y,0,x,y,rad);
-      const a = rnd(.03,.10);
-      grd.addColorStop(0, `rgba(${r},${gg},${b},${a})`);
-      grd.addColorStop(1, `rgba(${r},${gg},${b},0)`);
-      g.fillStyle = grd;
-      g.beginPath(); g.arc(x,y,rad,0,TAU); g.fill();
-    }
-    return c.toDataURL();
-  }
+
 
   let writing = null;
 
   function readLetter(l){
     const em = EMOTION[l.emotion] || EMOTION.love;
-    const wash = washCanvas(em.wash);
     const body = String(l.body||'');
+
+    // the paper is drawn once, then handed to CSS
+    document.documentElement.style.setProperty('--paper-url', 'url("'+OD.paperURL()+'")');
+
+    const from = l.from === 'her' ? CFG.her : CFG.him;
+    const to   = l.from === 'her' ? CFG.him : CFG.her;
 
     OD.Sheet.open(`
       <article class="letter" style="--seal:${em.css}">
-        <div class="letter-wash" style="background-image:url('${wash}')"></div>
-        <div class="letter-inner">
-          <div class="letter-meta">
-            <span class="dot" style="background:${em.css}"></span>
-            <span>${OD.esc(em.word)}</span>
-            <span class="sep">·</span>
-            <span>${OD.esc(Days.fmt(l.created))}</span>
+        <div class="letter-sheet">
+          <div class="letter-fold" aria-hidden="true"></div>
+          <div class="letter-head">
+            <div class="letter-place">sealed with ${OD.esc(em.word)}</div>
+            <div class="letter-date">${OD.esc(OD.longDate(l.created))}</div>
           </div>
           <h2 class="letter-title">${OD.esc(l.title||'Untitled')}</h2>
+          <p class="letter-salute">My dearest ${OD.esc(to.pet)},</p>
           <div class="letter-body" id="letterBody"></div>
-          <div class="letter-sign">— ${OD.esc(l.from==='her'?CFG.her.pet:CFG.him.pet)}</div>
-          <div class="rowbtn">
-            <button class="btn" id="sealBtn">seal it back up</button>
+          <div class="letter-close">
+            <span class="letter-yours">Ever yours,</span>
+            <span class="letter-name">${OD.esc(from.pet)}</span>
           </div>
+          <div class="letter-seal" aria-hidden="true"><span>${OD.esc(from.pet.charAt(0))}</span></div>
+        </div>
+        <div class="rowbtn">
+          <button class="btn" id="sealBtn">fold it away</button>
         </div>
       </article>
-    `, { wide:true, onClose:()=>{ if(writing){ writing.kill(); writing=null; } } });
+    `, { wide:true, paper:true,
+         onClose:()=>{ if(writing){ writing.kill(); writing=null; } } });
 
     const target = $('#letterBody');
     const paras = body.split(/\n{2,}/).filter(s=>s.trim());

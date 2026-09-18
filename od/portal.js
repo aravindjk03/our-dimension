@@ -214,9 +214,12 @@ OD.Portal = function(renderer, post, env){
   for(let i=0;i<DN;i++){
     const x=rnd(-13,13), y=rnd(-8,8), z=rnd(-6,4);
     dPos[i*3]=dHome[i*3]=x; dPos[i*3+1]=dHome[i*3+1]=y; dPos[i*3+2]=dHome[i*3+2]=z;
-    const p = OUTLINE[(Math.random()*NPT)|0];
-    const k = Math.sqrt(Math.random());
-    dTgt[i*3]=p.x*k*SCALE; dTgt[i*3+1]=p.y*k*SCALE; dTgt[i*3+2]=rnd(-.6,.6);
+    /* the dust settles into a POOL on the floor, not into a heart — the
+       heart is the thing you make out of it */
+    const a = Math.random()*TAU, k = Math.sqrt(Math.random());
+    dTgt[i*3]   = Math.cos(a)*k*SCALE*1.55;
+    dTgt[i*3+1] = (-H*SCALE*1.06) + rnd(0, .30);
+    dTgt[i*3+2] = Math.sin(a)*k*SCALE*1.55;
     dSize[i]=rnd(1.0,3.2); dSeed[i]=Math.random()*100;
     const c = cA.clone().lerp(cB, Math.random()*Math.random());
     dCol[i*3]=c.r; dCol[i*3+1]=c.g; dCol[i*3+2]=c.b;
@@ -255,7 +258,11 @@ OD.Portal = function(renderer, post, env){
   scene.add(new THREE.Points(dGeo, dMat));
 
   /* ── state ────────────────────────────────────────────────── */
-  const S = { t:0, t0:performance.now(), phase:'void', px:0, py:0, done:false, pending:false };
+  /* `form` is the whole interaction: 0 is a pool of molten chocolate on the
+     floor, 1 is a finished heart. You drive it yourself by scrolling, so the
+     heart comes back together under your hand rather than on a timer. */
+  const S = { t:0, t0:performance.now(), phase:'void', px:0, py:0,
+              done:false, form:0, wantForm:0, drawn:0 };
   let onDone = null;
 
   function onMove(x, y){
@@ -264,59 +271,61 @@ OD.Portal = function(renderer, post, env){
   }
 
   /* ══════════════════════════════════════════════════════════
-     THE MELT
+     GATHERING IT BACK
+     The pool on the floor is where you start. Scrolling runs the melt
+     backwards: the chocolate climbs out of the puddle and closes into a
+     heart under your hand, at whatever speed you move. When it is whole,
+     it draws you through itself.
      ══════════════════════════════════════════════════════════ */
-  function crack(){                    // the name the shell calls; it melts
-    /* An impatient tap during the opening seconds used to do nothing at all.
-       Remember it instead and melt the moment the heart has finished forming. */
-    if(S.phase === 'void' || S.phase === 'gather'){ S.pending = true; return; }
-    if(S.phase !== 'invite') return;
-    S.phase = 'melt';
+  function scroll(delta){
+    if(S.phase !== 'pool') return;
+    S.wantForm = clamp(S.wantForm + delta * 0.00090, 0, 1);
+    if(!S.heard && S.wantForm > 0.02){ S.heard = true; Snd.gather(); }
+  }
 
-    Snd.melt();
-    OD.buzz([12,40,12,60]);
+  /* A tap nudges it along too — nobody should be left hunting for a wheel. */
+  function crack(){
+    if(S.phase !== 'pool') return;
+    scroll(300);
+  }
+
+  function complete(){
+    if(S.phase !== 'pool') return;
+    S.phase = 'formed';
     $('#portalCopy').classList.add('gone');
+    Snd.chime(528);
+    gsap.delayedCall(.45, function(){ Snd.chime(792); });
+    OD.buzz([14,50,14,90]);
+    gsap.to(core, { intensity: 7.0, duration: 1.1, ease:'power2.out' });
+    gsap.to(pool.material, { opacity: 0, duration: 1.1 });
+    gsap.to(rise.material, { opacity: 0, duration: .9 });
+    gsap.delayedCall(1.15, drawIn);
+  }
 
-    /* Slow in, then the collapse runs away with itself — the way a thing
-       holds its shape right up to the moment it stops holding it. */
-    gsap.to(uMelt, { value: 1, duration: REDUCED ? 1.2 : 4.6, ease:'power2.in' });
+  /* and then it takes you in */
+  function drawIn(){
+    S.phase = 'drawin';
+    Snd.whoosh();
+    gsap.to(S, { drawn: 1, duration: 2.5, ease:'power2.in' });
+    gsap.to(cam, { fov: 88, duration: 2.5, ease:'power2.in',
+      onUpdate: function(){ cam.updateProjectionMatrix(); } });
+    gsap.to(core, { intensity: 24, duration: 2.1, ease:'power2.in' });
+    gsap.to(halo.material, { opacity: .95, duration: 1.4 });
+    gsap.to(halo.scale, { x:72, y:72, z:72, duration: 2.1, ease:'power2.in' });
+    gsap.to(post.uniforms.uExposure, { value: 1.55, duration: 2.1, ease:'power2.in' });
+    gsap.to(post.uniforms.uBloom, { value: Q.bloom ? 1.7 : 0, duration: 1.4 });
+    gsap.delayedCall(2.0, warp);
 
-    // it dulls as it goes soft, then turns glossy again as liquid
-    gsap.to(shell, { roughness: .55, duration: 1.6, ease:'power1.out' });
-    gsap.to(shell, { roughness: .12, duration: 2.4, delay:1.6, ease:'power1.inOut' });
-
-    gsap.to(pool.scale, { x: SCALE*1.9, y: SCALE*1.9, z: SCALE*1.9,
-                          duration: 4.0, delay: .8, ease:'power2.out' });
-
-    gsap.to(core, { intensity: 5.0, duration: 3.2, delay: 1.2, ease:'power2.in' });
-    gsap.to(rise.material, { opacity: .85, duration: 2.6, delay: 1.6 });
-    gsap.to(rise.scale, { x:16, y:16, z:16, duration: 3.4, delay: 1.6, ease:'power2.in' });
-    gsap.to(dMat.uniforms.uOp, { value: 0, duration: 1.6 });
-
-    gsap.delayedCall(.9, ()=>{ dripsRunning = true; });
-    gsap.delayedCall(REDUCED ? 1.4 : 4.4, pour);
-
-    /* Everything above rides on requestAnimationFrame, and a backgrounded
-       tab has rAF throttled to almost nothing — which would strand you on a
-       half-melted heart. setTimeout keeps running, so finish it by hand. */
-    setTimeout(()=>{
+    /* rAF is throttled to nothing on a backgrounded tab, which would strand
+       you inside the heart. setTimeout keeps firing, so finish it by hand. */
+    setTimeout(function(){
       if(S.done) return;
-      gsap.globalTimeline.getChildren(true,true,true).forEach(t=>t.progress(1));
+      gsap.globalTimeline.getChildren(true,true,true).forEach(function(t){ t.progress(1); });
       if(S.phase !== 'warp') warp();
-      setTimeout(()=>{ if(!S.done){ S.done = true; if(onDone) onDone(); } }, 2200);
-    }, 12000);
+      setTimeout(function(){ if(!S.done){ S.done = true; if(onDone) onDone(); } }, 2200);
+    }, 9000);
   }
 
-  function pour(){
-    S.phase = 'pour';
-    Snd.pour();
-    gsap.to(core, { intensity: 16, duration: 1.3, ease:'power2.in' });
-    gsap.to(halo.material, { opacity: .95, duration: 1.1 });
-    gsap.to(halo.scale, { x:64, y:64, z:64, duration: 1.5, ease:'power2.in' });
-    gsap.to(post.uniforms.uExposure, { value: 1.5, duration: 1.4, ease:'power2.in' });
-    gsap.to(post.uniforms.uBloom, { value: Q.bloom ? 1.6 : 0, duration: 1.0 });
-    gsap.delayedCall(1.0, warp);
-  }
 
   function warp(){
     S.phase = 'warp';
@@ -345,11 +354,18 @@ OD.Portal = function(renderer, post, env){
     dMat.uniforms.uT.value = S.t;
     uTime.value = S.t;
 
-    if(S.phase !== 'warp'){
+    if(S.phase === 'drawin'){
+      /* straight through the middle of it */
+      cam.position.x = lerp(cam.position.x, 0, dt*4);
+      cam.position.y = lerp(cam.position.y, 0, dt*4);
+      cam.position.z = lerp(11.4, 0.55, S.drawn);
+      cam.lookAt(0, 0, 0);
+    }
+    else if(S.phase !== 'warp'){
       const m0 = uMelt.value;
       cam.position.x = lerp(cam.position.x, (S.px*.55 + Math.sin(S.t*.31)*.13)*(1-m0*.7), dt*1.6);
       cam.position.y = lerp(cam.position.y, (S.py*.40 + Math.cos(S.t*.27)*.10) - m0*.55, dt*1.6);
-      // follow it down and give the pool room, so the ending stays in frame
+      // stand back while it is a puddle, come in as the heart closes
       cam.position.z = lerp(cam.position.z, 11.4 + m0*2.6, dt*1.4);
       cam.lookAt(0, -m0*1.15, 0);
     }
@@ -389,28 +405,45 @@ OD.Portal = function(renderer, post, env){
       heart.scale.setScalar(SCALE * (e*e*(3-2*e)));
       dMat.uniforms.uOp.value = 1 - e*.78;
       if(k >= 1){
-        S.phase = 'invite';
+        /* what the dust settles into is a PUDDLE, not a heart */
+        S.phase = 'pool';
+        uMelt.value = 1;
+        pool.material.opacity = .95;
+        pool.scale.setScalar(SCALE*1.75);
         $('#portalCopy').classList.add('in');
-        document.body.classList.add('hammer');
         drips.forEach(d=>d.visible = true);
         OD.buzz(18);
         Snd.chime(396);
-        if(S.pending){ S.pending = false; crack(); }
       }
     }
 
-    if(S.phase === 'invite' || S.phase === 'gather'){
-      heart.rotation.y += dt * 0.0873;             // five degrees a second
-      heart.rotation.x = Math.sin(S.t*.30)*.05;
-      heart.rotation.z = Math.cos(S.t*.22)*.025;
+    /* ── the pool, waiting for you to gather it ── */
+    else if(S.phase === 'pool'){
+      S.form = lerp(S.form, S.wantForm, dt*4.2);
+      uMelt.value = 1 - S.form;
+
+      const f = S.form;
+      // the puddle shrinks as the chocolate climbs out of it
+      pool.scale.setScalar(SCALE*1.75*(1 - f*0.92) + 0.001);
+      pool.material.opacity = .95*(1 - f*0.95);
+      // and the light inside it grows as it closes over
+      core.intensity = f*f*3.2;
+      rise.material.opacity = Math.max(0, .55 - f*.55);
+      rise.scale.setScalar(6 + f*4);
+      // it only starts turning once there is enough of a heart to turn
+      heart.rotation.y += dt * 0.0873 * f;
+      heart.rotation.x = Math.sin(S.t*.30)*.05*f;
+      heart.rotation.z = Math.cos(S.t*.22)*.025*f;
+
+      if(S.wantForm >= 0.999 && S.form > 0.985) complete();
     }
 
-    /* while melting it slumps to a stop rather than going on turning */
-    if(S.phase === 'melt' || S.phase === 'pour'){
-      heart.rotation.y += dt * 0.0873 * (1 - uMelt.value);
-      heart.rotation.x = lerp(heart.rotation.x, 0, dt*1.2);
-      heart.rotation.z = lerp(heart.rotation.z, 0, dt*1.2);
-      pool.material.opacity = Math.min(.95, uMelt.value*1.5);
+    /* ── formed, and about to take you in ── */
+    else if(S.phase === 'formed' || S.phase === 'drawin'){
+      uMelt.value = 0;
+      heart.rotation.y += dt * 0.0873;
+      heart.rotation.x = lerp(heart.rotation.x, 0, dt*2.0);
+      heart.rotation.z = lerp(heart.rotation.z, 0, dt*2.0);
     }
 
     /* the drips */
@@ -460,10 +493,16 @@ OD.Portal = function(renderer, post, env){
   }
 
   return {
-    scene, cam, update, crack, onMove,
+    scene, cam, update, crack, scroll, onMove,
     get phase(){ return S.phase; },
+    get form(){ return S.form; },
     set done(fn){ onDone = fn; },
-    begin(){ S.t = 0; S.t0 = performance.now(); S.phase = 'void'; S.pending = false; uMelt.value = 0; }
+    begin(){
+      S.t = 0; S.t0 = performance.now(); S.phase = 'void';
+      S.form = 0; S.wantForm = 0; S.drawn = 0; S.heard = false;
+      uMelt.value = 1;                       // it starts as a puddle
+      cam.fov = 42; cam.updateProjectionMatrix();
+    }
   };
 };
 

@@ -135,6 +135,79 @@ OD.LEAF   = (function(){
 })();
 OD.softSprite = softSprite;
 
+/* ── aged writing paper, for the letters ──────────────────────
+   Laid fibres, foxing, a tea ring, and edges darkened the way paper
+   oxidises where it has been handled. Drawn once, handed to CSS as a
+   data URL so the letter sheet is a real surface and not a flat fill. */
+OD.paperURL = function(){
+  if(OD.paperURL._u) return OD.paperURL._u;
+  const S = 600;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+
+  g.fillStyle = '#EADCC0'; g.fillRect(0,0,S,S);
+
+  // broad unevenness in the pulp
+  const img = g.getImageData(0,0,S,S), d = img.data;
+  for(let y=0;y<S;y++) for(let x=0;x<S;x++){
+    const n = fbm(x/S*5, y/S*5, 3.1, 4)*0.5 + fbm(x/S*24, y/S*24, 9.4, 2)*0.22;
+    const laid = Math.sin(y*0.75)*0.012 + Math.sin(x*0.10)*0.010;   // laid lines
+    const k = 1 + n*0.085 + laid;
+    const i = (y*S+x)*4;
+    d[i]   = clamp(d[i]  *k, 0, 255);
+    d[i+1] = clamp(d[i+1]*k*0.997, 0, 255);
+    d[i+2] = clamp(d[i+2]*k*0.988, 0, 255);
+  }
+  g.putImageData(img,0,0);
+
+  // foxing — the small rust-brown blooms old paper gets
+  for(let i=0;i<70;i++){
+    const x = Math.random()*S, y = Math.random()*S, r = rnd(2.5, 13);
+    const grd = g.createRadialGradient(x,y,0,x,y,r);
+    const a = rnd(.03,.13);
+    grd.addColorStop(0, 'rgba(150,102,48,'+a+')');
+    grd.addColorStop(1, 'rgba(150,102,48,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(x,y,r,0,TAU); g.fill();
+  }
+
+  // a ring where a cup once stood
+  (function teaRing(){
+    const x = rnd(S*.55,S*.85), y = rnd(S*.15,S*.4), r = rnd(46,66);
+    g.strokeStyle = 'rgba(138,92,42,.10)'; g.lineWidth = 7;
+    g.beginPath(); g.arc(x,y,r,0,TAU); g.stroke();
+    g.strokeStyle = 'rgba(138,92,42,.05)'; g.lineWidth = 16;
+    g.beginPath(); g.arc(x,y,r,0,TAU); g.stroke();
+  })();
+
+  // handled edges darken first
+  const edge = g.createLinearGradient(0,0,0,S);
+  edge.addColorStop(0,'rgba(120,78,34,.22)');
+  edge.addColorStop(.12,'rgba(120,78,34,0)');
+  edge.addColorStop(.88,'rgba(120,78,34,0)');
+  edge.addColorStop(1,'rgba(120,78,34,.22)');
+  g.fillStyle = edge; g.fillRect(0,0,S,S);
+  const edge2 = g.createLinearGradient(0,0,S,0);
+  edge2.addColorStop(0,'rgba(120,78,34,.20)');
+  edge2.addColorStop(.12,'rgba(120,78,34,0)');
+  edge2.addColorStop(.88,'rgba(120,78,34,0)');
+  edge2.addColorStop(1,'rgba(120,78,34,.20)');
+  g.fillStyle = edge2; g.fillRect(0,0,S,S);
+
+  OD.paperURL._u = c.toDataURL('image/jpeg', 0.86);
+  return OD.paperURL._u;
+};
+
+/* "the 6th of April, 2021" — how a letter dates itself */
+OD.longDate = function(d){
+  const dt = (d instanceof Date) ? d : new Date(d);
+  if(isNaN(dt)) return '';
+  const n = dt.getDate();
+  const s = (n%10===1 && n!==11) ? 'st' : (n%10===2 && n!==12) ? 'nd'
+          : (n%10===3 && n!==13) ? 'rd' : 'th';
+  const month = dt.toLocaleDateString('en', { month:'long' });
+  return 'the ' + n + s + ' of ' + month + ', ' + dt.getFullYear();
+};
+
 /* ══════════════════════════════════════════════════════════════
    PROCEDURAL MATERIALS
    Everything is drawn at load. No external image is ever fetched,
@@ -697,6 +770,12 @@ OD.Snd = (function(){
     },
     /* liquid running */
     pour(){ noise(2.2,'bandpass',420,1500,.30,.9); noise(1.6,'lowpass',600,120,.22,.6); },
+    /* something drawing itself back together */
+    gather(){
+      tone(82,3.4,'sine',.20,196);
+      tone(123,3.0,'triangle',.11,294);
+      noise(2.6,'bandpass',220,900,.16,1.1);
+    },
     glass(){ tone(1760,1.4,'sine',.14,2093); tone(2640,1.1,'sine',.06); },
     chime(f){
       if(!ctx||!on) return;
@@ -932,6 +1011,7 @@ OD.Sheet = (function(){
       body.innerHTML = html;
       el.classList.toggle('wide', !!opts.wide);
       el.classList.toggle('bare', !!opts.bare);
+      el.classList.toggle('paper', !!opts.paper);
       el.classList.add('open');
       onClose = opts.onClose || null;
       const f = body.querySelector('[autofocus]');

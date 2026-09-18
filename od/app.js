@@ -246,24 +246,45 @@ function syncStage(){
    ══════════════════════════════════════════════════════════ */
 let portal = null;
 
+/* On the portal, dragging upward gathers the chocolate the same way the wheel
+   does, so the gesture works on a phone with no scrollbar in sight. */
+let pDrag = false, pLastY = 0, pMoved = 0;
+
 canvas.addEventListener('pointerdown', e=>{
   Snd.wake();
-  if(activeKey === 'portal'){ portal.onMove(e.clientX, e.clientY); portal.crack(); return; }
+  if(activeKey === 'portal'){
+    portal.onMove(e.clientX, e.clientY);
+    pDrag = true; pLastY = e.clientY; pMoved = 0;
+    return;
+  }
   if(active && active.down) active.down(e.clientX, e.clientY);
 });
 canvas.addEventListener('pointermove', e=>{
-  if(activeKey === 'portal'){ portal.onMove(e.clientX, e.clientY); return; }
+  if(activeKey === 'portal'){
+    portal.onMove(e.clientX, e.clientY);
+    if(pDrag){
+      const dy = e.clientY - pLastY;
+      pLastY = e.clientY;
+      pMoved += Math.abs(dy);
+      portal.scroll(-dy * 3.2);          // pull upward to draw it up
+    }
+    return;
+  }
   if(active && active.move) active.move(e.clientX, e.clientY);
 });
 window.addEventListener('pointerup', e=>{
-  if(activeKey === 'portal') return;
+  if(activeKey === 'portal'){
+    if(pDrag && pMoved < 6) portal.crack();   // a plain tap still nudges it
+    pDrag = false;
+    return;
+  }
   if(active && active.up) active.up(e.clientX, e.clientY);
 });
 canvas.addEventListener('pointercancel', ()=>{
   if(active && active.up) active.up(-9999,-9999);
 });
 canvas.addEventListener('wheel', e=>{
-  if(activeKey === 'portal') return;
+  if(activeKey === 'portal'){ e.preventDefault(); portal.scroll(e.deltaY); return; }
   if(active && active.zoom){ e.preventDefault(); active.zoom(e.deltaY); }
 }, { passive:false });
 
@@ -316,6 +337,7 @@ $$('#dock .dk').forEach(b=>{
 });
 
 /* ── main loop ────────────────────────────────────────────── */
+const portalBar = $('#portalBar');
 let last = performance.now();
 function frame(now){
   requestAnimationFrame(frame);
@@ -324,6 +346,7 @@ function frame(now){
 
   if(activeKey === 'portal'){
     portal.update(dt);
+    if(portalBar) portalBar.style.setProperty('--p', portal.form.toFixed(3));
     post.render(portal.scene, portal.cam, dt);
     return;
   }
@@ -372,8 +395,9 @@ async function start(){
 
   const who = Store.who;
   $('#portalLine').textContent = COARSE
-    ? 'Touch it' + (who ? ', ' + who.pet : '') + ', and watch it melt'
-    : 'Touch it and watch it melt';
+    ? 'Draw it back together' + (who ? ', ' + who.pet : '')
+    : 'Scroll to draw it back together';
+  $('#portalHint').textContent = COARSE ? 'drag upward' : 'or drag upward';
   $('#portalSub').textContent = who ? 'made for you, ' + who.pet + ', specifically'
                                     : 'made for you, specifically';
 
