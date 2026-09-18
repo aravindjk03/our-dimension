@@ -757,14 +757,25 @@ OD.Hub = function(renderer, post, env, mood){
   const lanternSky = OD.LanternSky ? OD.LanternSky(scene, { radius: 150, high: 70 }) : null;
 
   /* ── camera ───────────────────────────────────────────────── */
+  /* A camera's field of view is vertical, so a tall narrow phone sees far
+     less across than a wide screen at the same distance and everything
+     crowds the edges. Stand further back the narrower it gets. */
+  function fit(){
+    const a = innerWidth / innerHeight;
+    return clamp(0.75 / a, 1, 2.1);
+  }
   const VIEWS = {
-    hub:  { t:new THREE.Vector3(22,-6,12), d: TIER==='mobile'?190:140, th:.70, ph:1.04 },
-    tree: { t:new THREE.Vector3(0,11,0),   d: TIER==='mobile'?54:44,   th:.62, ph:1.16 }
+    hub:  { t:new THREE.Vector3(22,-6,12), d: 140, th:.70, ph:1.04 },
+    tree: { t:new THREE.Vector3(0,11,0),   d: 46,  th:.62, ph:1.16 }
   };
+  function viewDist(key){
+    const base = key === 'hub' ? VIEWS.hub.d : VIEWS.tree.d;
+    return base * fit();
+  }
   const rig = {
     target: VIEWS.tree.t.clone(), want: VIEWS.tree.t.clone(),
-    theta:VIEWS.tree.th, phi:VIEWS.tree.ph, dist:VIEWS.tree.d + 90,
-    wantTheta:VIEWS.tree.th, wantPhi:VIEWS.tree.ph, wantDist:VIEWS.tree.d,
+    theta:VIEWS.tree.th, phi:VIEWS.tree.ph, dist:viewDist('tree') + 90,
+    wantTheta:VIEWS.tree.th, wantPhi:VIEWS.tree.ph, wantDist:viewDist('tree'),
     flying:false
   };
   function apply(){
@@ -781,11 +792,11 @@ OD.Hub = function(renderer, post, env, mood){
   let current='tree', T=0, tint=0, tintTo=0, leafFall=0;
 
   function viewOf(key){
-    if(key==='hub') return VIEWS.hub;
-    if(key==='tree') return VIEWS.tree;
+    if(key==='hub')  return Object.assign({}, VIEWS.hub,  { d: viewDist('hub') });
+    if(key==='tree') return Object.assign({}, VIEWS.tree, { d: viewDist('tree') });
     const is = ISLANDS.find(i=>i.key===key);
     return { t: is.pos.clone().add(new THREE.Vector3(0,5,0)),
-             d: TIER==='mobile'?40:30,
+             d: 30 * fit(),
              th: Math.atan2(is.pos.x, is.pos.z)+.55, ph:1.16 };
   }
 
@@ -972,7 +983,13 @@ OD.Hub = function(renderer, post, env, mood){
     `, { wide:true });
   }
 
-  function resize(){ cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); }
+  function resize(){
+    cam.aspect = innerWidth/innerHeight;
+    cam.updateProjectionMatrix();
+    if(!rig.flying && (current === 'hub' || current === 'tree')){
+      rig.wantDist = viewDist(current);   // re-fit when the phone is turned
+    }
+  }
 
   return {
     scene, cam, Tree, MOOD, SEASON, ISLANDS, groups, labels,
