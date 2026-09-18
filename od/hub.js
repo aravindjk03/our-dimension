@@ -11,7 +11,7 @@ OD.skyMood = function(){
   const n = new Date();
   const h = n.getHours() + n.getMinutes()/60;
   if(h>=5 && h<8)   return { id:'dawn',  top:0x2A2450, mid:0xE8A07A, bot:0xFFC9A0, sun:0xFFD9A8, night:0.10, name:'dawn',        env:'warm' };
-  if(h>=8 && h<17)  return { id:'day',   top:0x3E6FA8, mid:0x9FC3D8, bot:0xFFE3BE, sun:0xFFF0D2, night:0.00, name:'golden hour', env:'day'  };
+  if(h>=8 && h<17)  return { id:'day',   top:0x24508C, mid:0x6D9FC4, bot:0xE0A868, sun:0xFFDFA6, night:0.00, name:'golden hour', env:'day'  };
   if(h>=17 && h<20) return { id:'dusk',  top:0x2B1B4A, mid:0x8E4A7C, bot:0xE9885E, sun:0xFFB98A, night:0.24, name:'dusk',        env:'warm' };
   return              { id:'night', top:0x05060F, mid:0x101C3A, bot:0x243258, sun:0x8FA8D8, night:1.00, name:'night',       env:'night' };
 };
@@ -67,13 +67,13 @@ OD.Hub = function(renderer, post, env, mood){
           vec3 sd = normalize(vec3(-0.82,0.18,0.54));
           float s = max(dot(vP,sd),0.0);
           c += uSun * pow(s,26.0) * 1.05;
-          c += uSun * pow(s, 4.0) * 0.18;
+          c += uSun * pow(s, 4.0) * 0.09;
 
           // high cirrus, drifting
           vec2 cp = vP.xz / max(abs(vP.y)+0.22, 0.22);
           float cl = fbm2(cp*1.5 + vec2(uT*0.012, uT*0.007));
           cl = smoothstep(0.52, 0.86, cl) * smoothstep(0.02, 0.32, vP.y);
-          c = mix(c, mix(uBot, vec3(1.0), 0.55), cl * (0.34 - uNight*0.22));
+          c = mix(c, mix(uBot, vec3(1.0), 0.30), cl * (0.24 - uNight*0.16));
 
           if(uNight > 0.02){
             vec2 g = floor(vP.xz*300.0 + vP.y*110.0);
