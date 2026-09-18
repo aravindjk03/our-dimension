@@ -461,9 +461,12 @@ OD.Post = function(renderer){
         float vig = smoothstep(0.92, 0.22, r2 * uVignette * 2.1);
         col *= mix(0.42, 1.0, vig);
 
-        // fine grain, animated
+        // Fine grain, animated. Weighted by luminance: real film grain lives
+        // in the midtones, and unweighted grain on a near-black frame reads as
+        // television static once the sRGB curve lifts it.
         float g = rand(uv * vec2(1920.0,1080.0) + fract(uTime)*97.0) - 0.5;
-        col += g * uGrain;
+        float luma = dot(col, vec3(0.2126,0.7152,0.0722));
+        col += g * uGrain * (0.08 + 0.92 * sqrt(clamp(luma, 0.0, 1.0)));
 
         col = mix(col, uFadeCol, uFade);
 

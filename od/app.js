@@ -18,6 +18,13 @@ renderer.outputEncoding = THREE.LinearEncoding;   // the composite does the enco
 renderer.toneMapping = THREE.NoToneMapping;       // and the tone mapping
 renderer.autoClear = true;
 
+/* GSAP clamps its timeline after any frame longer than 500ms, on the theory
+   that a long frame is a lag spike rather than real elapsed time. On a
+   backgrounded tab — where rAF is throttled to near zero — that stops every
+   animation advancing at all, and a timed sequence never finishes. Turn it
+   off: our own loop already clamps dt, so nothing here fears a big delta. */
+gsap.ticker.lagSmoothing(0);
+
 const post = OD.Post(renderer);
 post.resize(innerWidth, innerHeight);
 

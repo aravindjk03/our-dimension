@@ -10,7 +10,7 @@ const { TAU, clamp, lerp, rnd, smooth, Q, TIER, REDUCED, COARSE, Snd, $ } = OD;
 OD.Portal = function(renderer, post, env){
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x06040A);
+  scene.background = new THREE.Color(0x000000);   // stage one is pure black
   scene.environment = env;
 
   const cam = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, .1, 140);
@@ -351,7 +351,10 @@ OD.Portal = function(renderer, post, env){
 
     heart.visible = false;
     coreMesh.visible = true;
-    coreMesh.scale.setScalar(SCALE*.56);
+    // Flattened in Z so the molten interior stays *inside* the shell: a round
+    // sphere pokes straight through the face of a heart this thin and reads as
+    // a white ball stuck on the front.
+    coreMesh.scale.set(SCALE*.60, SCALE*.60, SCALE*.17);
 
     shardGroup.scale.setScalar(SCALE);
     shardGroup.rotation.copy(heart.rotation);
@@ -381,6 +384,17 @@ OD.Portal = function(renderer, post, env){
 
     $('#portalCopy').classList.add('gone');
     gsap.delayedCall(.84, burst);
+
+    // Safety net. Everything above rides on requestAnimationFrame, and a tab
+    // backgrounded mid-sequence has rAF throttled to almost nothing — which
+    // strands you on a cracked heart that never opens. setTimeout keeps
+    // running, so if the warp has not landed in time, finish it by hand.
+    setTimeout(()=>{
+      if(S.done) return;
+      gsap.globalTimeline.getChildren(true,true,true).forEach(t=>t.progress(1));
+      if(S.phase !== 'warp') warp();
+      setTimeout(()=>{ if(!S.done){ S.done = true; if(onDone) onDone(); } }, 2200);
+    }, 9000);
   }
 
   function burst(){
