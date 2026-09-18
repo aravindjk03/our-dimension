@@ -77,8 +77,16 @@ OD.Portal = function(renderer, post, env){
   const MELT_GLSL = `
     uniform float uMelt;
     uniform float uMTime;
-    float hash31(vec3 p){
-      return fract(sin(dot(p, vec3(12.9898,78.233,37.719))) * 43758.5453);
+    float hash21(vec2 p){
+      return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453);
+    }
+    /* smooth, so neighbouring runs blend into each other — a quantised
+       hash combs the silhouette into hard vertical bars */
+    float vnoise2(vec2 p){
+      vec2 i = floor(p), f = fract(p);
+      f = f*f*(3.0-2.0*f);
+      return mix(mix(hash21(i),            hash21(i+vec2(1.0,0.0)), f.x),
+                 mix(hash21(i+vec2(0.0,1.0)), hash21(i+vec2(1.0,1.0)), f.x), f.y);
     }
     vec3 meltPos(vec3 p){
       float m = uMelt;
@@ -86,15 +94,16 @@ OD.Portal = function(renderer, post, env){
       float HH = ${H.toFixed(3)};
       float h = clamp((p.y + HH) / (2.0*HH), 0.0, 1.0);   // 0 bottom, 1 top
 
-      // chocolate does not fall evenly — it runs in columns, some quicker
-      float col = hash31(floor(vec3(p.x*6.0, 0.0, p.z*6.0)));
-      float run = 0.40 + col*1.30;
+      // chocolate does not fall evenly — it runs, and some runs outpace others
+      float col = vnoise2(vec2(p.x, p.z) * 2.3);
+      float run = 0.55 + col*0.95;
 
-      // everything sinks, and the top has furthest to sink
-      p.y -= m * (0.30 + h*1.85) * HH * run;
+      // it sinks, and the top has furthest to sink
+      p.y -= m * (0.35 + h*2.05) * HH * run;
 
-      // and spreads outward as it loses the shape
-      float spread = m*m * (1.0 - h*0.55) * 1.55;
+      // it spreads, but only near the base, and never wider than it is tall —
+      // a melting thing collapses downward, it does not grow
+      float spread = m*m * pow(1.0 - h, 1.7) * 0.72;
       p.x *= 1.0 + spread;
       p.z *= 1.0 + spread;
 
@@ -326,9 +335,12 @@ OD.Portal = function(renderer, post, env){
     uTime.value = S.t;
 
     if(S.phase !== 'warp'){
-      cam.position.x = lerp(cam.position.x, S.px*.55 + Math.sin(S.t*.31)*.13, dt*1.6);
-      cam.position.y = lerp(cam.position.y, S.py*.40 + Math.cos(S.t*.27)*.10, dt*1.6);
-      cam.lookAt(0,0,0);
+      const m0 = uMelt.value;
+      cam.position.x = lerp(cam.position.x, (S.px*.55 + Math.sin(S.t*.31)*.13)*(1-m0*.7), dt*1.6);
+      cam.position.y = lerp(cam.position.y, (S.py*.40 + Math.cos(S.t*.27)*.10) - m0*.55, dt*1.6);
+      // follow it down and give the pool room, so the ending stays in frame
+      cam.position.z = lerp(cam.position.z, 11.4 + m0*2.6, dt*1.4);
+      cam.lookAt(0, -m0*1.15, 0);
     }
 
     /* stage one — the void */
@@ -396,8 +408,9 @@ OD.Portal = function(renderer, post, env){
       if(u.falling){
         u.vy -= 9.0*dt;
         d.position.y += u.vy*dt;
-        // a falling bead stretches as it picks up speed
-        d.scale.set(u.r*11, u.r*11*(1.4 + Math.abs(u.vy)*.30), u.r*11);
+        // a falling bead stretches as it picks up speed.
+        // the geometry is a UNIT sphere, so u.r IS the finished radius.
+        d.scale.set(u.r, u.r*(1.4 + Math.abs(u.vy)*.30), u.r);
         if(d.position.y < FLOOR){
           u.falling = false; u.vy = 0; u.t = rnd(0,3);
         }
@@ -413,7 +426,7 @@ OD.Portal = function(renderer, post, env){
       );
       d.position.applyAxisAngle(AXIS_Y, heart.rotation.y);
       const sc = Math.sin(ph*Math.PI);
-      d.scale.setScalar(clamp(sc*u.r*12, .001, u.r*12));
+      d.scale.setScalar(clamp(sc*u.r, .0008, u.r));
       if(dripsRunning && ph > .80 && Math.random() < .05){
         u.falling = true; u.vy = -.4;
       }
