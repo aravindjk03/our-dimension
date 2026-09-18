@@ -17,6 +17,10 @@ const { TAU, clamp, lerp, rnd, smooth, Q, TIER, REDUCED, Snd, $ } = OD;
 
 OD.Portal = function(renderer, post, env){
 
+  /* "A & D" — taken from the two names rather than hard-coded, so changing
+     the config in the database changes what the heart carries. */
+  const CFG_INITIALS = (OD.CFG.him.name.charAt(0) + ' & ' + OD.CFG.her.name.charAt(0)).toUpperCase();
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);   // stage one is pure black
   scene.environment = env;
@@ -155,6 +159,46 @@ OD.Portal = function(renderer, post, env){
   const heart = new THREE.Mesh(heartGeo, [shell, inner]);
   heart.scale.setScalar(.0001);
   scene.add(heart);
+
+  /* ── the initials, pressed into the face ──────────────────────
+     Drawn as an engraving rather than printed on: a pale copy offset
+     down and right where the cut would catch the key light, and a dark
+     copy on top for the shadowed upper wall. It rides on the heart, so
+     it turns with it, and it only appears once there is a face to press
+     it into. */
+  const initials = (function(){
+    const W = 512, Hh = 256;
+    const c = document.createElement('canvas'); c.width = W; c.height = Hh;
+    const g = c.getContext('2d');
+
+    function draw(){
+      g.clearRect(0,0,W,Hh);
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.font = 'italic 600 128px "Cormorant Garamond", Georgia, serif';
+      // the lit lower wall of the groove
+      g.fillStyle = 'rgba(255, 226, 184, 0.55)';
+      g.fillText(CFG_INITIALS, W/2 + 3, Hh/2 + 3);
+      // the shadowed upper wall
+      g.fillStyle = 'rgba(28, 12, 4, 0.72)';
+      g.fillText(CFG_INITIALS, W/2, Hh/2);
+      if(tx) tx.needsUpdate = true;
+    }
+    let tx = null;
+    draw();
+    /* the webfont usually is not there yet at boot, so draw it again once it is */
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(draw).catch(()=>{});
+
+    tx = new THREE.CanvasTexture(c);
+    tx.encoding = THREE.sRGBEncoding;
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.42, 0.71),
+      new THREE.MeshBasicMaterial({ map:tx, transparent:true, opacity:0, depthWrite:false })
+    );
+    m.position.set(0, -0.04, 0.515);     // just proud of the front face
+    heart.add(m);
+    return m;
+  })();
 
   const FLOOR = -H*SCALE*1.06;
 
@@ -434,6 +478,8 @@ OD.Portal = function(renderer, post, env){
       heart.rotation.y += dt * 0.0873 * f;
       heart.rotation.x = Math.sin(S.t*.30)*.05*f;
       heart.rotation.z = Math.cos(S.t*.22)*.025*f;
+      // and there is no face to press the initials into until the end
+      initials.material.opacity = smooth(clamp((f - 0.74)/0.26, 0, 1)) * 0.92;
 
       if(S.wantForm >= 0.999 && S.form > 0.985) complete();
     }
@@ -441,6 +487,7 @@ OD.Portal = function(renderer, post, env){
     /* ── formed, and about to take you in ── */
     else if(S.phase === 'formed' || S.phase === 'drawin'){
       uMelt.value = 0;
+      initials.material.opacity = 0.92;
       heart.rotation.y += dt * 0.0873;
       heart.rotation.x = lerp(heart.rotation.x, 0, dt*2.0);
       heart.rotation.z = lerp(heart.rotation.z, 0, dt*2.0);

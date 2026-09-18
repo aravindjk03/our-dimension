@@ -100,7 +100,38 @@ body.hammer, body.hammer #gl{
   font-size:clamp(22px,4.2vw,33px);color:var(--t2);margin:0;text-align:center;
   text-wrap:balance;line-height:1.35;max-width:22ch;
 }
+.gatepane{
+  display:flex;flex-direction:column;align-items:center;
+  gap:clamp(24px,5vh,42px);width:100%;
+}
 #gate .rule{width:44px;height:1px;background:var(--edge);}
+
+/* the second step: one thing only she would know */
+.askwrap{display:flex;flex-direction:column;align-items:center;gap:14px;width:min(92vw,420px);}
+.asklabel{
+  font-family:var(--f-hand);font-size:clamp(24px,4.4vw,32px);
+  color:var(--gold);text-align:center;line-height:1.25;
+}
+#askInput{
+  width:100%;background:rgba(10,6,4,.62);border:1px solid var(--edge);
+  border-radius:var(--r);color:var(--cream);text-align:center;
+  font-family:var(--f-hand);font-size:clamp(26px,5vw,36px);
+  padding:14px 18px;letter-spacing:.04em;transition:border-color .3s,box-shadow .3s;
+}
+#askInput:focus{outline:none;border-color:var(--edge-hi);box-shadow:0 0 28px rgba(255,217,168,.16);}
+#askInput::placeholder{color:var(--t4);}
+.askrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.askmiss{
+  min-height:18px;font-size:11px;letter-spacing:.14em;color:var(--rose);
+  opacity:0;transition:opacity .3s;text-align:center;
+}
+.askmiss.on{opacity:1;}
+#gateAsk.wrong .askwrap{animation:nope .42s ease;}
+@keyframes nope{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-9px)} 40%{transform:translateX(8px)}
+  60%{transform:translateX(-5px)} 80%{transform:translateX(3px)}
+}
 .sides{display:flex;gap:clamp(12px,2.6vw,20px);flex-wrap:wrap;justify-content:center;}
 .side{
   border:1px solid var(--edge);background:rgba(24,14,9,.6);border-radius:var(--r);

@@ -416,6 +416,73 @@ function frame(now){
 }
 
 /* ══════════════════════════════════════════════════════════
+   THE DOOR
+   Claiming to be PAPA is not enough — anyone with the link could.
+   So it asks one thing only she would know, and the answer is not
+   stored anywhere a stranger could read it off the page.
+   ══════════════════════════════════════════════════════════ */
+const HER_ANSWERS = ['avi', 'headache'];
+const flatten = s => String(s||'').toLowerCase().replace(/[^a-z]/g, '');
+
+function askAtTheDoor(){
+  const gate  = $('#gate');
+  const who   = $('#gateWho');
+  const ask   = $('#gateAsk');
+  const miss  = $('#askMiss');
+  const input = $('#askInput');
+
+  $('#gateHer').innerHTML = `<b>${OD.esc(CFG.her.pet)}</b><span>${OD.esc(CFG.her.name)}</span>`;
+  $('#gateHim').innerHTML = `<b>${OD.esc(CFG.him.pet)}</b><span>${OD.esc(CFG.him.name)}</span>`;
+  $('#askTitle').textContent = 'Then one thing only ' + CFG.her.pet + ' would know.';
+  $('#askLabel').textContent = 'What do you call ' + CFG.him.name + '?';
+
+  gate.hidden = false;
+  requestAnimationFrame(()=>gate.classList.add('in'));
+
+  return new Promise(resolve=>{
+    let settled = false;
+
+    function enter(side){
+      if(settled) return;
+      settled = true;
+      Store.pick(side);
+      gate.classList.remove('in');
+      gsap.delayedCall(.85, ()=>{ gate.hidden = true; resolve(); });
+    }
+    function showAsk(){
+      who.hidden = true;
+      ask.hidden = false;
+      miss.classList.remove('on');
+      input.value = '';
+      setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 140);
+    }
+    function backToWho(){
+      ask.hidden = true;
+      who.hidden = false;
+      miss.classList.remove('on');
+    }
+    function tryAnswer(){
+      const v = flatten(input.value);
+      if(HER_ANSWERS.indexOf(v) >= 0){ Snd.chime(528); enter('her'); return; }
+      ask.classList.add('wrong');
+      miss.textContent = v ? 'that is not what she calls him' : 'say it';
+      miss.classList.add('on');
+      OD.buzz([40,60,40]);
+      setTimeout(()=>ask.classList.remove('wrong'), 460);
+      try{ input.select(); }catch(e){}
+    }
+
+    $('#gateHim').addEventListener('click', ()=>{ Snd.wake(); enter('him'); });
+    $('#gateHer').addEventListener('click', ()=>{ Snd.wake(); showAsk(); });
+    $('#askGo').addEventListener('click', ()=>{ Snd.wake(); tryAnswer(); });
+    $('#askBack').addEventListener('click', backToWho);
+    input.addEventListener('keydown', e=>{
+      if(e.key === 'Enter'){ e.preventDefault(); tryAnswer(); }
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
    BOOT
    ══════════════════════════════════════════════════════════ */
 async function start(){
@@ -431,23 +498,9 @@ async function start(){
   const ld = $('#loading'); if(ld) ld.remove();
   $('#ofLine').textContent = CFG.line;
 
-  if(!side){
-    const gate = $('#gate');
-    $('#gateHer').innerHTML = `<b>${OD.esc(CFG.her.pet)}</b><span>${OD.esc(CFG.her.name)}</span>`;
-    $('#gateHim').innerHTML = `<b>${OD.esc(CFG.him.pet)}</b><span>${OD.esc(CFG.him.name)}</span>`;
-    gate.hidden = false;
-    requestAnimationFrame(()=>gate.classList.add('in'));
-    await new Promise(res=>{
-      $$('#gate .side').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          Snd.wake();
-          Store.pick(b.dataset.side);
-          gate.classList.remove('in');
-          gsap.delayedCall(.85, ()=>{ gate.hidden = true; res(); });
-        }, { once:true });
-      });
-    });
-  }
+  /* The door always asks, every time. It is the first thing that happens and
+     it is what makes everything past it personal. */
+  await askAtTheDoor();
 
   const who = Store.who;
   $('#portalLine').textContent = COARSE
