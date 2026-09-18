@@ -372,8 +372,8 @@ async function start(){
 
   const who = Store.who;
   $('#portalLine').textContent = COARSE
-    ? 'Tap to unwrap your world' + (who ? ', ' + who.pet : '')
-    : 'Click to crack open something sweet';
+    ? 'Touch it' + (who ? ', ' + who.pet : '') + ', and watch it melt'
+    : 'Touch it and watch it melt';
   $('#portalSub').textContent = who ? 'made for you, ' + who.pet + ', specifically'
                                     : 'made for you, specifically';
 
