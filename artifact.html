@@ -74,7 +74,7 @@ body.hammer, body.hammer #gl{
 }
 
 #ui{position:absolute;inset:0;z-index:5;pointer-events:none;}
-#gate,#compass,#sound,#sheet,.label,#dock,#action,.btn,.dk{pointer-events:auto;}
+#gate,#compass,#sound,#who,#sheet,.label,#dock,#action,.btn,.dk{pointer-events:auto;}
 
 #loading{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;
@@ -196,6 +196,24 @@ body.hammer, body.hammer #gl{
 #compass:hover{border-color:var(--edge-hi);transform:rotate(-14deg);}
 #compass svg{width:21px;height:21px;display:block;}
 
+/* who the world thinks you are — tap to change sides */
+#who{
+  top:calc(var(--pad) + env(safe-area-inset-top,0px));
+  left:calc(var(--pad) + 58px);
+  display:flex;align-items:center;gap:9px;padding:11px 15px;
+  color:var(--t2);opacity:0;pointer-events:none;
+}
+#who.on{opacity:1;pointer-events:auto;}
+#who:hover{border-color:var(--edge-hi);}
+#who .wdot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--me,var(--gold));box-shadow:0 0 10px var(--me,var(--gold));
+}
+#who .wname{
+  font-family:var(--f-hand);font-size:19px;line-height:1;
+  color:var(--me,var(--gold));letter-spacing:.02em;
+}
+
 #sound{
   top:calc(var(--pad) + env(safe-area-inset-top,0px));right:var(--pad);
   display:flex;align-items:center;gap:8px;padding:11px 14px;color:var(--t3);
@@ -233,6 +251,8 @@ body.hammer, body.hammer #gl{
   display:none;align-items:center;justify-content:center;line-height:1;
 }
 .dk .bdg.on{display:flex;}
+/* a plain count, not an alert */
+.dk .bdg.n{background:rgba(255,217,168,.16);color:var(--gold);font-weight:400;}
 
 /* the one thing you can do here */
 #action{
@@ -261,7 +281,7 @@ body.hammer, body.hammer #gl{
 #counter::before{
   content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   width:150%;height:260%;pointer-events:none;z-index:-1;
-  background:radial-gradient(ellipse at center,rgba(6,3,10,.62) 0%,rgba(6,3,10,.34) 46%,transparent 74%);
+  background:radial-gradient(ellipse at center,rgba(5,2,8,.80) 0%,rgba(5,2,8,.52) 44%,transparent 76%);
 }
 #counter{
   position:absolute;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));
@@ -280,18 +300,18 @@ body.hammer, body.hammer #gl{
   line-height:.92;letter-spacing:-.015em;display:block;
 }
 .tick u{text-shadow:0 1px 8px rgba(0,0,0,.95);
-  text-decoration:none;font-size:7.5px;letter-spacing:.34em;text-transform:uppercase;
+  text-decoration:none;font-size:9px;letter-spacing:.30em;text-transform:uppercase;
   font-weight:300;margin-top:10px;
 }
 .t-d i{font-size:clamp(48px,10.5vw,92px);color:var(--gold-hot);
   text-shadow:0 2px 18px rgba(0,0,0,.92),0 0 34px rgba(255,205,145,.55),0 0 80px rgba(255,160,80,.22);}
-.t-d u{color:rgba(255,217,168,.82);}
-.t-h i{font-size:clamp(26px,5.6vw,46px);color:rgba(255,224,182,.92);text-shadow:0 2px 14px rgba(0,0,0,.9),0 0 20px rgba(255,190,120,.3);}
-.t-h u{color:var(--t3);}
-.t-m i{font-size:clamp(19px,4vw,32px);color:rgba(255,224,182,.74);text-shadow:0 2px 12px rgba(0,0,0,.88);}
-.t-m u{color:var(--t4);}
-.t-s i{font-size:clamp(15px,3vw,24px);color:rgba(255,224,182,.58);text-shadow:0 2px 12px rgba(0,0,0,.85);}
-.t-s u{color:var(--t4);}
+.t-d u{color:rgba(255,226,190,.95);}
+.t-h i{font-size:clamp(30px,6.2vw,52px);color:rgba(255,231,196,1);text-shadow:0 2px 14px rgba(0,0,0,.9),0 0 20px rgba(255,190,120,.3);}
+.t-h u{color:rgba(255,222,186,.90);}
+.t-m i{font-size:clamp(24px,4.8vw,40px);color:rgba(255,228,190,.92);text-shadow:0 2px 12px rgba(0,0,0,.88);}
+.t-m u{color:rgba(255,222,186,.78);}
+.t-s i{font-size:clamp(19px,3.8vw,31px);color:rgba(255,224,182,.80);text-shadow:0 2px 12px rgba(0,0,0,.85);}
+.t-s u{color:rgba(255,222,186,.66);}
 #ofLine{
   font-family:var(--f-hand);font-size:clamp(19px,3.6vw,28px);color:var(--rose);
   margin-top:20px;text-shadow:0 2px 14px rgba(0,0,0,.9),0 0 24px rgba(243,160,184,.5);

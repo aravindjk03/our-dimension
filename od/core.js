@@ -857,6 +857,28 @@ OD.Store = (function(){
   }
   function localSave(col, arr){ ls('od.'+col, JSON.stringify(arr)); }
 
+  /* When there is no database, `watch` used to read localStorage once and
+     then go quiet forever — so a letter you wrote or a wish you released
+     was saved but never appeared until a reload. Local writes have to tell
+     the live watchers, the same way a database subscription would. */
+  const localWatchers = {};
+  function notifyLocal(col){
+    const subs = localWatchers[col];
+    if(!subs) return;
+    const rows = localList(col);
+    subs.slice().forEach(fn=>{ try{ fn(rows.slice()); }catch(e){} });
+  }
+  function watchLocal(col, fn){
+    (localWatchers[col] = localWatchers[col] || []).push(fn);
+    fn(localList(col));
+    return function(){
+      const a = localWatchers[col];
+      if(!a) return;
+      const i = a.indexOf(fn);
+      if(i >= 0) a.splice(i,1);
+    };
+  }
+
   return {
     boot, pick,
     get db(){ return db; },
@@ -867,7 +889,7 @@ OD.Store = (function(){
     get writable(){ return !!db && canWrite !== false; },
     get ready(){ return ready; },
 
-    /* subscribe to a collection; falls back to a one-shot local read */
+    /* subscribe to a collection, live either way */
     watch(col, fn, orderBy, dir){
       if(db){
         let q = db.collection(col);
@@ -877,10 +899,9 @@ OD.Store = (function(){
             snap => fn(snap.docs.map(d=>Object.assign({ id:d.id }, d.data()))),
             ()=> fn(localList(col))
           );
-        }catch(e){ /* fall through */ }
+        }catch(e){ /* fall through to the local watcher */ }
       }
-      fn(localList(col));
-      return ()=>{};
+      return watchLocal(col, fn);
     },
     async put(col, id, data){
       if(db){
@@ -889,6 +910,7 @@ OD.Store = (function(){
       const arr = localList(col).filter(x=>x.id!==id);
       arr.push(Object.assign({id:id}, data));
       localSave(col, arr);
+      notifyLocal(col);
       return false;
     },
     async patch(col, id, data){
@@ -900,6 +922,7 @@ OD.Store = (function(){
       const i = arr.findIndex(x=>x.id===id);
       if(i>=0) Object.assign(arr[i], data); else arr.push(Object.assign({id:id}, data));
       localSave(col, arr);
+      notifyLocal(col);
       return false;
     },
     async get(col, id){
@@ -914,8 +937,11 @@ OD.Store = (function(){
     async remove(col, id){
       if(db){ try{ await db.collection(col).doc(id).delete(); return true; }catch(e){} }
       localSave(col, localList(col).filter(x=>x.id!==id));
+      notifyLocal(col);
       return false;
     },
+    /* switching who you are re-personalises everything on the spot */
+    setSide(s){ side = s; ls('od.side', s); if(db && uid) claim(s); },
     localList, localSave,
     newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   };

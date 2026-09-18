@@ -318,7 +318,63 @@ window.addEventListener('resize', ()=>{
   Object.keys(worlds).forEach(k=>{ if(worlds[k].resize) worlds[k].resize(); });
 });
 
+/* ══════════════════════════════════════════════════════════
+   WHO YOU ARE
+   The world asks once and then remembers, which means it never asks
+   again and there is no way to correct it. So it says so, always, and
+   lets you change sides.
+   ══════════════════════════════════════════════════════════ */
+function paintWho(){
+  const chip = $('#who');
+  const me = Store.who;
+  if(!chip) return;
+  if(!me){ chip.classList.remove('on'); return; }
+  chip.style.setProperty('--me', me.css);
+  chip.querySelector('.wname').textContent = me.pet;
+  chip.classList.add('on');
+  chip.title = 'You are ' + me.pet + ' — tap to change';
+}
+
+function whoSheet(){
+  const me = Store.who, them = Store.other;
+  if(!me) return;
+  OD.Sheet.open(`
+    <div class="eyebrow">this device</div>
+    <h2>The world thinks you are ${OD.esc(me.pet)}</h2>
+    <p class="lead">That is what decides which side of the daily question is
+    yours, what colour your wishes rise in, and who the letters are addressed
+    to. If it has you wrong, put it right.</p>
+    <div class="rowbtn">
+      <button class="btn primary" id="switchSide">no — I am ${OD.esc(them.pet)}</button>
+    </div>
+  `);
+  const b = $('#switchSide');
+  if(b) b.addEventListener('click', ()=>{
+    Store.setSide(Store.side === 'her' ? 'him' : 'her');
+    paintWho();
+    OD.Sheet.close();
+    OD.toast('you are ' + Store.who.pet + ' now', 3200);
+  });
+}
+
+/* counts on the dock, so it reads as a place with things in it */
+function wireCounts(){
+  Store.watch('memories', list=>{
+    const el = $('#towerBadge');
+    if(el){ el.textContent = list.length || ''; el.classList.toggle('on', list.length>0); }
+  });
+  Store.watch('wishes', list=>{
+    const el = $('#wishBadge');
+    if(el){ el.textContent = list.length || ''; el.classList.toggle('on', list.length>0); }
+  });
+  Store.watch('vault', list=>{
+    const el = $('#vaultBadge');
+    if(el){ el.textContent = list.length || ''; el.classList.toggle('on', list.length>0); }
+  });
+}
+
 /* ── chrome wiring ────────────────────────────────────────── */
+$('#who').addEventListener('click', ()=>{ Snd.wake(); whoSheet(); });
 $('#compass').addEventListener('click', ()=>{ Snd.wake(); Nav.go('hub'); });
 $('#sound').addEventListener('click', ()=>{
   const on = Snd.toggle();
@@ -418,6 +474,8 @@ async function start(){
     post.bloom = .72;
     post.fadeTo(0xFFE9C6, 0, 2.2);
     setChrome('tree');
+    paintWho();
+    wireCounts();
     document.body.classList.remove('hammer');
     Snd.bed('workshop', 0);
     Snd.bed('wind', .20);
