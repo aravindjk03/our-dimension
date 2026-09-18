@@ -259,18 +259,50 @@ OD.Letters = function(renderer, post, env){
 
     const target = $('#letterBody');
     const paras = body.split(/\n{2,}/).filter(s=>s.trim());
-    target.innerHTML = paras.map(p=>'<p></p>').join('');
-    const pEls = Array.prototype.slice.call(target.querySelectorAll('p'));
+
+    /* You write a letter in a plain box, so you mark emphasis the way you do
+       everywhere else — **like this**. Printing the asterisks is not what
+       anybody meant. Split each paragraph into runs and give each one its own
+       node, so the ink can still fill them a character at a time. */
+    function runsOf(src){
+      const out = [];
+      const re = /(\*\*|__|\*|_)(.+?)\1/g;
+      let last = 0, m;
+      while((m = re.exec(src))){
+        if(m.index > last) out.push({ t: src.slice(last, m.index), tag:null });
+        out.push({ t: m[2], tag: (m[1] === '**' || m[1] === '__') ? 'b' : 'i' });
+        last = re.lastIndex;
+      }
+      if(last < src.length) out.push({ t: src.slice(last), tag:null });
+      // a leftover asterisk is half of a pair someone mistyped, not a word
+      return out
+        .map(r => r.tag ? r : { t: r.t.replace(/[*_]/g, ''), tag:null })
+        .filter(r => r.t.length > 0);
+    }
+
+    // one cell per run: the node the ink fills, and the words that go in it
+    const cells = [];
+    target.innerHTML = '';
+    paras.forEach(p=>{
+      const pEl = document.createElement('p');
+      const runs = runsOf(p);
+      (runs.length ? runs : [{ t:p, tag:null }]).forEach(r=>{
+        const el = document.createElement(r.tag || 'span');
+        pEl.appendChild(el);
+        cells.push({ el: el, text: r.t });
+      });
+      target.appendChild(pEl);
+    });
 
     // the ink writes itself, with a nib you can hurry along
-    let ci = 0, pi = 0;
+    let ci = 0, k = 0;
     const speed = OD.REDUCED ? 0 : 20;
     const cursor = document.createElement('span');
     cursor.className = 'nib';
 
     function finish(){
       if(writing){ writing.kill(); writing = null; }
-      pEls.forEach((el,i)=>{ el.textContent = paras[i]; });
+      cells.forEach(c=>{ c.el.textContent = c.text; });
       if(cursor.parentNode) cursor.parentNode.removeChild(cursor);
       target.classList.add('done');
     }
@@ -293,23 +325,23 @@ OD.Letters = function(renderer, post, env){
       if(over > 0) box.scrollTop += over;
     }
 
-    if(speed === 0){ finish(); }
+    if(speed === 0 || !cells.length){ finish(); }
     else {
-      pEls[0].appendChild(cursor);
+      cells[0].el.appendChild(cursor);
       writing = gsap.to({}, {
         duration: 0.001, repeat: -1, repeatDelay: speed/1000,
         onRepeat(){
-          if(pi >= paras.length){ finish(); return; }
-          const txt = paras[pi];
+          if(k >= cells.length){ finish(); return; }
+          const cell = cells[k];
           const step = 1 + (Math.random()<.22 ? 1 : 0);
-          ci = Math.min(txt.length, ci + step);
-          pEls[pi].textContent = txt.slice(0, ci);
-          pEls[pi].appendChild(cursor);
+          ci = Math.min(cell.text.length, ci + step);
+          cell.el.textContent = cell.text.slice(0, ci);
+          cell.el.appendChild(cursor);
           if(ci % 3 === 0) Snd.ink();
           if(ci % 6 === 0) followNib();
-          if(ci >= txt.length){
-            pi++; ci = 0;
-            if(pi < paras.length) pEls[pi].appendChild(cursor);
+          if(ci >= cell.text.length){
+            k++; ci = 0;
+            if(k < cells.length) cells[k].el.appendChild(cursor);
             followNib();
           }
         }
