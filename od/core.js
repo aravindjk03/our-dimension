@@ -889,19 +889,34 @@ OD.Store = (function(){
     get writable(){ return !!db && canWrite !== false; },
     get ready(){ return ready; },
 
-    /* subscribe to a collection, live either way */
+    /* subscribe to a collection, live either way.
+       `memories` gets the shipped album folded in, so the tree bears fruit
+       and the tower has a spiral to climb on a first visit with nothing
+       saved. Anything written with the same id wins over the seed, and a
+       seed that has been deleted stays deleted. */
     watch(col, fn, orderBy, dir){
+      const withSeeds = rows=>{
+        if(col !== 'memories' || !OD.SEED_MEMORIES) return rows;
+        let dropped = [];
+        try{ dropped = JSON.parse(ls('od.dropped.memories') || '[]'); }catch(e){}
+        const have = {};
+        rows.forEach(r=>{ have[r.id] = true; });
+        const seeds = OD.SEED_MEMORIES.filter(
+          s => !have[s.id] && dropped.indexOf(s.id) < 0);
+        return seeds.concat(rows);
+      };
+      const wrapped = rows => fn(withSeeds(rows));
       if(db){
         let q = db.collection(col);
         if(orderBy) q = q.orderBy(orderBy, dir||'asc');
         try{
           return q.onSnapshot(
-            snap => fn(snap.docs.map(d=>Object.assign({ id:d.id }, d.data()))),
-            ()=> fn(localList(col))
+            snap => wrapped(snap.docs.map(d=>Object.assign({ id:d.id }, d.data()))),
+            ()=> wrapped(localList(col))
           );
         }catch(e){ /* fall through to the local watcher */ }
       }
-      return watchLocal(col, fn);
+      return watchLocal(col, wrapped);
     },
     async put(col, id, data){
       if(db){
@@ -935,6 +950,15 @@ OD.Store = (function(){
       return localList(col).find(x=>x.id===id) || null;
     },
     async remove(col, id){
+      /* a seeded photograph has nothing to delete in storage, so remember
+         that it was let go or it simply reappears on the next load */
+      if(col === 'memories' && String(id).indexOf('seed-') === 0){
+        try{
+          const d = JSON.parse(ls('od.dropped.memories') || '[]');
+          if(d.indexOf(id) < 0){ d.push(id); ls('od.dropped.memories', JSON.stringify(d)); }
+        }catch(e){}
+        notifyLocal(col);
+      }
       if(db){ try{ await db.collection(col).doc(id).delete(); return true; }catch(e){} }
       localSave(col, localList(col).filter(x=>x.id!==id));
       notifyLocal(col);

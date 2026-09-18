@@ -283,10 +283,25 @@ window.addEventListener('pointerup', e=>{
 canvas.addEventListener('pointercancel', ()=>{
   if(active && active.up) active.up(-9999,-9999);
 });
-canvas.addEventListener('wheel', e=>{
+/* On the window rather than the canvas: a wheel event over any part of the
+   heads-up layer never reached a canvas-only listener, so scrolling simply did
+   nothing depending on where the pointer happened to be sitting. */
+addEventListener('wheel', e=>{
+  if(OD.Sheet.isOpen) return;              // let a long letter scroll itself
   if(activeKey === 'portal'){ e.preventDefault(); portal.scroll(e.deltaY); return; }
   if(active && active.zoom){ e.preventDefault(); active.zoom(e.deltaY); }
 }, { passive:false });
+
+/* Trackpads and some mice report tiny deltas; phones report none at all. The
+   keyboard is a third way in, and it costs nothing. */
+addEventListener('keydown', e=>{
+  if(activeKey !== 'portal' || OD.Sheet.isOpen) return;
+  if(e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown'){
+    e.preventDefault(); portal.scroll(300);
+  } else if(e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp'){
+    e.preventDefault(); portal.scroll(-300);
+  }
+});
 
 /* two thumbs on the tree is a hug */
 canvas.addEventListener('touchstart', e=>{

@@ -965,8 +965,8 @@ OD.Hub = function(renderer, post, env, mood){
           : `<img class="memmedia" src="${OD.esc(mem.asset_url)}" alt="${OD.esc(mem.title||'a memory')}">`)
       : '';
     OD.Sheet.open(`
-      <div class="eyebrow">picked from the tree · ${OD.esc(Days.fmt(mem.date))}</div>
-      <h2>${OD.esc(mem.title || '')}</h2>
+      <div class="eyebrow">picked from the tree · ${OD.esc(Days.fmt(mem.date))}${mem.placeholder ? ' · date not set yet' : ''}</div>
+      ${mem.title ? `<h2>${OD.esc(mem.title)}</h2>` : ''}
       ${media}
       ${mem.caption ? `<p class="lead">${OD.esc(mem.caption)}</p>` : ''}
     `, { wide:true });

@@ -281,8 +281,8 @@ OD.Tower = function(renderer, post, env){
             : `<img class="memmedia" src="${OD.esc(m.asset_url)}" alt="${OD.esc(m.title||'a memory')}">`)
       : '';
     OD.Sheet.open(`
-      <div class="eyebrow">${OD.esc(Days.fmt(m.date))}</div>
-      <h2>${OD.esc(m.title||'')}</h2>
+      <div class="eyebrow">${OD.esc(Days.fmt(m.date))}${m.placeholder ? ' · date not set yet' : ''}</div>
+      ${m.title ? `<h2>${OD.esc(m.title)}</h2>` : ''}
       ${media}
       ${m.caption ? `<p class="lead">${OD.esc(m.caption)}</p>` : ''}
       ${m.voice_url ? `<audio class="memaudio" src="${OD.esc(m.voice_url)}" controls></audio>` : ''}
