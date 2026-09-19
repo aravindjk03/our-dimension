@@ -23,6 +23,22 @@ OD.Letters = function(renderer, post, env){
 
   const cam = new THREE.PerspectiveCamera(47, innerWidth/innerHeight, .1, 120);
 
+  /* A phone in portrait sees a sliver of the width a laptop does: at 47° and an
+     aspect of 0.46 the frame is barely five units across at the middle of the
+     room, and the envelopes were hanging on a ring eight units wide. They were
+     not hidden — they were off to the sides, out of frame, and the room only
+     turns a degree every two seconds, so you could hold the phone for three
+     minutes and never meet your own letter. The ring pulls in on a narrow
+     screen, the lens opens up, and the newest letter is hung dead ahead. */
+  function fit(){
+    return clamp(0.78 / (innerWidth/innerHeight), 1, 1.75);
+  }
+  function lens(){
+    return clamp(47 + (fit()-1)*22, 47, 63);
+  }
+  cam.fov = lens();
+  cam.updateProjectionMatrix();
+
   /* ── the room ─────────────────────────────────────────────── */
   const room = new THREE.Group(); scene.add(room);
 
@@ -129,6 +145,27 @@ OD.Letters = function(renderer, post, env){
     return !!(l.unlock_date && new Date(l.unlock_date).getTime() > Date.now());
   }
 
+  /* Hang one envelope in the loose double ring. The camera's home heading looks
+     down +z, so an angle of π/2 is dead ahead — and the newest letter, which is
+     last in the list, is the one that gets it. The ring tightens as the frame
+     narrows so a phone still holds an arc of it rather than one sliver. */
+  const HOME_ANGLE = Math.PI/2;
+  function hang(g, i, total){
+    /* Everything is measured back from the newest letter rather than forward
+       from the oldest, so the newest takes the anchor exactly: no stagger, the
+       near ring, the top row. It is the one you walked in to read. */
+    const k = i - (Math.max(total,1) - 1);
+    const wrap = (n,m) => ((n % m) + m) % m;
+    const a = HOME_ANGLE + (k/Math.max(total,1))*TAU + (wrap(k,2) ? .18 : 0);
+    const r = (5.2 + wrap(k,3)*1.5) / fit();
+    g.position.set(Math.cos(a)*r, 2.4 - wrap(k,4)*1.1, Math.sin(a)*r);
+    g.rotation.set(0, -a + Math.PI/2, 0);
+    g.userData.home = g.position.clone();
+    g.userData.homeRot = g.rotation.clone();
+    g.userData.idx = i;
+    g.userData.total = total;
+  }
+
   function makeEnvelope(l, i, total){
     const g = new THREE.Group();
     const em = EMOTION[l.emotion] || EMOTION.love;
@@ -180,14 +217,8 @@ OD.Letters = function(renderer, post, env){
       g.userData.glow = glow;
     }
 
-    // hang them in a loose double ring
-    const a = (i/Math.max(total,1))*TAU + (i%2 ? .18 : 0);
-    const r = 5.2 + (i%3)*1.5;
-    g.position.set(Math.cos(a)*r, 2.4 - (i%4)*1.1, Math.sin(a)*r);
-    g.rotation.y = -a + Math.PI/2;
-    g.userData.home = g.position.clone();
-    g.userData.homeRot = g.rotation.clone();
     g.userData.letter = l;
+    hang(g, i, total);
     g.userData.ph = Math.random()*TAU;
     g.userData.locked = isLocked(l);
     return g;
@@ -374,7 +405,8 @@ OD.Letters = function(renderer, post, env){
 
     const front = new THREE.Vector3();
     cam.getWorldDirection(front);
-    const dest = cam.position.clone().addScaledVector(front, 4.6);
+    // held further out on a narrow screen, or it overflows the frame
+    const dest = cam.position.clone().addScaledVector(front, 4.6 * fit());
 
     gsap.to(node.position, { x:dest.x, y:dest.y, z:dest.z, duration:.8, ease:'power3.out' });
     gsap.to(node.rotation, { x:0, y:Math.atan2(cam.position.x-dest.x, cam.position.z-dest.z), z:0,
@@ -504,7 +536,8 @@ OD.Letters = function(renderer, post, env){
   }
 
   /* ── camera / input ───────────────────────────────────────── */
-  const orbit = { th:0, ph:1.30, d:13.5, wth:0, wph:1.30, wd:13.5, tgt:new THREE.Vector3(0,1.6,0) };
+  const BASE_D = 13.5;
+  const orbit = { th:0, ph:1.30, d:BASE_D, wth:0, wph:1.30, wd:BASE_D, tgt:new THREE.Vector3(0,1.6,0) };
   function apply(){
     const s=Math.sin(orbit.ph), c=Math.cos(orbit.ph);
     cam.position.set(
@@ -587,6 +620,12 @@ OD.Letters = function(renderer, post, env){
   function enter(){
     Snd.bed('wind', .10);
     window.addEventListener('deviceorientation', onTilt);
+    /* The room turns slowly on its own while you stand in it, and that heading
+       used to be where you found yourself on the way back. Walk in facing the
+       newest letter instead — it is the one you came for. */
+    orbit.th = orbit.wth = 0;
+    orbit.d  = orbit.wd  = BASE_D;
+    apply();
     if(!letters.length){
       gsap.delayedCall(1.0, ()=>OD.toast('nothing hanging yet — tap the quill on the desk'));
     } else {
@@ -600,7 +639,17 @@ OD.Letters = function(renderer, post, env){
     window.removeEventListener('deviceorientation', onTilt);
     if(focused) unfocus();
   }
-  function resize(){ cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix(); }
+  /* Turning a phone sideways changes what fits, so the ring is re-hung to match.
+     A letter you are holding open keeps its place. */
+  function resize(){
+    cam.aspect = innerWidth/innerHeight;
+    cam.fov = lens();
+    cam.updateProjectionMatrix();
+    nodes.forEach((n,i)=>{
+      if(n === focused) return;
+      hang(n, i, nodes.length);
+    });
+  }
 
   return {
     scene, cam, update, enter, exit, resize, down, move, up, zoom, compose,
