@@ -13,7 +13,12 @@ const page = fs.readFileSync('index.html', 'utf8');
 const css  = fs.readFileSync('od/style.css', 'utf8');
 
 const fonts = page.match(/<link rel="preconnect"[\s\S]*?display=swap">/)[0];
-const scripts = page.match(/<script src="[^"]+"><\/script>/g).join('\n');
+/* index.html carries a ?v= on its own files so a phone that has already cached
+   an older copy is forced to fetch the new one. The Artifact serves published
+   files by exact path, so the query comes back off here. */
+const scripts = page.match(/<script src="[^"]+"><\/script>/g)
+  .map(s => s.replace(/(src="od\/[a-z]+\.js)\?v=\d+/, '$1'))
+  .join('\n');
 
 const out = [
   '<title>Our Dimension</title>',

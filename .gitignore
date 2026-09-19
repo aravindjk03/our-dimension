@@ -5,3 +5,4 @@ our-dimension.html
 Thumbs.db
 node_modules/
 *.log
+.claude/

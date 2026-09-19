@@ -250,8 +250,14 @@ let portal = null;
    does, so the gesture works on a phone with no scrollbar in sight. */
 let pDrag = false, pLastY = 0, pMoved = 0;
 
+/* Two fingers down means a pinch, not a drag. Without this the second finger
+   lands as its own pointerdown, the orbit snaps to it, and the whole world
+   lurches sideways while you are only trying to zoom. */
+let pinching = false;
+
 canvas.addEventListener('pointerdown', e=>{
   Snd.wake();
+  if(pinching) return;
   if(activeKey === 'portal'){
     portal.onMove(e.clientX, e.clientY);
     pDrag = true; pLastY = e.clientY; pMoved = 0;
@@ -260,6 +266,7 @@ canvas.addEventListener('pointerdown', e=>{
   if(active && active.down) active.down(e.clientX, e.clientY);
 });
 canvas.addEventListener('pointermove', e=>{
+  if(pinching) return;
   if(activeKey === 'portal'){
     portal.onMove(e.clientX, e.clientY);
     if(pDrag){
@@ -303,13 +310,51 @@ addEventListener('keydown', e=>{
   }
 });
 
-/* two thumbs on the tree is a hug */
+/* ── pinch: the wheel, for people who do not have one ────────
+   Everything the mouse wheel drives — how far back you stand in the hub, how
+   deep you sink in the cave, how high you ride the tower — was reachable only
+   by a wheel, which a phone does not have. Two fingers spread apart now say the
+   same thing as scrolling up. A two-finger tap on the tree is still a hug. */
+function spanOf(t){
+  const dx = t[0].clientX - t[1].clientX, dy = t[0].clientY - t[1].clientY;
+  return Math.hypot(dx, dy);
+}
+let pinchSpan = 0, pinchMoved = 0, pinchX = 0, pinchY = 0;
+
 canvas.addEventListener('touchstart', e=>{
-  if(activeKey !== 'hub-world' || e.touches.length !== 2) return;
-  const a=e.touches[0], b=e.touches[1];
-  world('hub').pulse((a.clientX+b.clientX)/2, (a.clientY+b.clientY)/2);
-  OD.toast('felt that');
+  if(e.touches.length !== 2) return;
+  const a = e.touches[0], b = e.touches[1];
+  pinching = true;
+  pinchSpan = spanOf(e.touches);
+  pinchMoved = 0;
+  pinchX = (a.clientX + b.clientX)/2;
+  pinchY = (a.clientY + b.clientY)/2;
+  pDrag = false;
+  if(active && active.up) active.up(-9999, -9999);   // end the one-finger drag
 }, { passive:true });
+
+canvas.addEventListener('touchmove', e=>{
+  if(!pinching || e.touches.length !== 2) return;
+  const span = spanOf(e.touches);
+  const d = span - pinchSpan;
+  pinchSpan = span;
+  pinchMoved += Math.abs(d);
+  // fingers apart = closer in, which is the sign a wheel would give
+  if(active && active.zoom) active.zoom(-d * 3);
+}, { passive:true });
+
+function endPinch(e){
+  if(!pinching || e.touches.length >= 2) return;
+  if(pinchMoved < 14 && activeKey === 'hub-world'){
+    world('hub').pulse(pinchX, pinchY);
+    OD.toast('felt that');
+  }
+  pinching = false;
+  // a finger still on the glass would otherwise carry on from a stale anchor
+  if(active && active.up) active.up(-9999, -9999);
+}
+canvas.addEventListener('touchend', endPinch, { passive:true });
+canvas.addEventListener('touchcancel', endPinch, { passive:true });
 
 canvas.addEventListener('dblclick', e=>{
   if(activeKey === 'hub-world' && hubView === 'tree')

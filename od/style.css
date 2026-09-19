@@ -186,7 +186,11 @@ body.hammer, body.hammer #gl{
 }
 
 /* ─────────────────────────────  labels  ────────────────────── */
-#labels{position:absolute;inset:0;transition:opacity .6s var(--ease);}
+/* This container is empty glass stretched over the whole screen, and it sits
+   above the canvas. Without pointer-events:none it quietly ate every tap and
+   every drag in every world — the island names are the only thing in here that
+   is meant to be touchable, and they take it back on their own. */
+#labels{position:absolute;inset:0;pointer-events:none;transition:opacity .6s var(--ease);}
 #labels.off{opacity:0;pointer-events:none;}
 .label{
   position:absolute;transform:translate(-50%,-50%) scale(var(--s,1));
