@@ -78,12 +78,20 @@ let connecting = null;
 OD.Backend = {
   get configured(){ return configured(); },
   get world(){ return worldId(); },
+  reason: 'idle',      // idle · ok · no-key · unreachable
 
   /* Resolves to something Store can use, or null. Never throws: a world that
      cannot reach its store still has to open. */
   connect(){
     if(connecting) return connecting;
     if(!configured()) return Promise.resolve(null);
+    /* Without a room id the letters would be written at the top of the
+       database, which the rules refuse — and a refusal looks exactly like
+       having no shared store at all. Say which it is instead. */
+    if(OD.FIREBASE_MODE !== 'password' && !worldId()){
+      OD.Backend.reason = 'no-key';
+      return Promise.resolve(null);
+    }
 
     connecting = (async function(){
       try{
@@ -110,8 +118,10 @@ OD.Backend = {
 
         const db = firebase.firestore();
         try{ await db.enablePersistence({ synchronizeTabs:true }); }catch(e){}
+        OD.Backend.reason = 'ok';
         return scoped(db);
       }catch(e){
+        OD.Backend.reason = 'unreachable';
         return null;
       }
     })();

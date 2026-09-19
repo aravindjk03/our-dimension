@@ -600,6 +600,17 @@ async function start(){
     gsap.delayedCall(.9, ()=>{
       OD.toast(who ? 'welcome to our world, ' + who.pet : 'welcome to our world', 3600);
     });
+    /* Whether this is the world you both write into, or only this device's
+       copy of it. Silent when nothing has been set up — but once a backend is
+       configured, never leave anyone guessing which one they are in. */
+    if(OD.Backend && OD.Backend.configured){
+      gsap.delayedCall(2.6, ()=>{
+        if(Store.db) OD.toast('you are both writing into the same world', 3800);
+        else if(OD.Backend.reason === 'no-key')
+          OD.toast('open the link with your key to share this world', 5200);
+        else OD.toast('could not reach the shared world · this device only', 5200);
+      });
+    }
     gsap.delayedCall(4.6, ()=>{
       OD.toast(COARSE ? 'swipe to look around · tap a place to fly'
                       : 'drag to look around · click a place to fly', 4200);
