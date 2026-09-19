@@ -799,11 +799,21 @@ OD.Store = (function(){
   }
 
   async function boot(){
-    if(window.claude && claude.use){
-      try{ db   = await claude.use('db'); }catch(e){ db=null; }
-      /* Hand over anything that subscribed while we were waiting, before the
-         slower identity and config reads below. */
+    /* A configured backend wins, because it is the only store all of the
+       links can reach: the Artifact's own database is reachable only from
+       the Artifact, and the two of them would end up writing into separate
+       worlds depending on which link they opened. */
+    if(OD.Backend && OD.Backend.configured){
+      try{ db = await OD.Backend.connect(); }catch(e){ db = null; }
       upgradeWatches();
+    }
+    if(window.claude && claude.use){
+      if(!db){
+        try{ db = await claude.use('db'); }catch(e){ db=null; }
+        /* Hand over anything that subscribed while we were waiting, before
+           the slower identity and config reads below. */
+        upgradeWatches();
+      }
       try{ user = await claude.use('user'); }catch(e){ user=null; }
     }
     if(user){
