@@ -14,10 +14,13 @@ writing letters will ever use.
 1. Go to <https://console.firebase.google.com> and sign in with a Google
    account.
 2. **Add project** → call it anything → you can turn Google Analytics **off**.
-3. In the left sidebar: **Build → Firestore Database → Create database**.
-   Pick a location near you. Start in **production mode** — locked. The rules
-   in step 3 below replace whatever it starts with.
-4. In the left sidebar: **Build → Authentication → Get started**.
+3. In the left sidebar: **Databases & Storage → Firestore → Create database**.
+   Pick a location near you — it cannot be changed afterwards. Start in
+   **production mode**, which denies every read and write until you publish
+   the rules in step 3 below. Do not pick test mode: that one is open to
+   anybody for 30 days.
+4. In the left sidebar: **Security → Authentication → Get started**, then the
+   **Sign-in method** tab.
    - For the **link** model, enable **Anonymous**.
    - For the **two accounts** model, enable **Email/Password**, then add your
      two users under the *Users* tab with **Add user**. Copy each one's
