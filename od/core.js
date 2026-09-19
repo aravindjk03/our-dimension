@@ -801,6 +801,9 @@ OD.Store = (function(){
   async function boot(){
     if(window.claude && claude.use){
       try{ db   = await claude.use('db'); }catch(e){ db=null; }
+      /* Hand over anything that subscribed while we were waiting, before the
+         slower identity and config reads below. */
+      upgradeWatches();
       try{ user = await claude.use('user'); }catch(e){ user=null; }
     }
     if(user){
@@ -834,6 +837,7 @@ OD.Store = (function(){
       }
     }
     ready = true;
+    settleWatches();
     return side;
   }
 
@@ -868,6 +872,51 @@ OD.Store = (function(){
     const rows = localList(col);
     subs.slice().forEach(fn=>{ try{ fn(rows.slice()); }catch(e){} });
   }
+  /* Every live subscription, so that a database which shows up late can take
+     them over. boot() is raced against a three-second timeout, and on a phone
+     on mobile data `claude.use('db')` can easily lose that race. Whatever the
+     app subscribed to in the meantime was bound to this device's localStorage
+     and used to stay bound to it for the rest of the session: the letters were
+     sitting in the shared store and the treehouse would have gone on saying
+     nothing was hanging there forever. */
+  const liveWatches = [];
+
+  function attach(rec){
+    if(db){
+      try{
+        let q = db.collection(rec.col);
+        if(rec.orderBy) q = q.orderBy(rec.orderBy, rec.dir||'asc');
+        rec.stop = q.onSnapshot(
+          snap => rec.wrapped(snap.docs.map(d=>Object.assign({ id:d.id }, d.data())), true),
+          ()=> rec.wrapped(localList(rec.col), false)
+        );
+        rec.viaDb = true;
+        return;
+      }catch(e){ /* fall through to the local watcher */ }
+    }
+    rec.stop = watchLocal(rec.col, rows => rec.wrapped(rows, false));
+    rec.viaDb = false;
+  }
+
+  function upgradeWatches(){
+    if(!db) return;
+    liveWatches.slice().forEach(rec=>{
+      if(rec.viaDb) return;
+      if(rec.stop) rec.stop();
+      attach(rec);
+    });
+  }
+
+  /* Once boot has settled and there turned out to be no database, this device's
+     own storage IS the answer — so say so, otherwise a watcher waiting to hear
+     something final waits for nothing. */
+  function settleWatches(){
+    liveWatches.slice().forEach(rec=>{
+      if(rec.viaDb) return;
+      try{ rec.wrapped(localList(rec.col), false); }catch(e){}
+    });
+  }
+
   function watchLocal(col, fn){
     (localWatchers[col] = localWatchers[col] || []).push(fn);
     fn(localList(col));
@@ -905,18 +954,18 @@ OD.Store = (function(){
           s => !have[s.id] && dropped.indexOf(s.id) < 0);
         return seeds.concat(rows);
       };
-      const wrapped = rows => fn(withSeeds(rows));
-      if(db){
-        let q = db.collection(col);
-        if(orderBy) q = q.orderBy(orderBy, dir||'asc');
-        try{
-          return q.onSnapshot(
-            snap => wrapped(snap.docs.map(d=>Object.assign({ id:d.id }, d.data()))),
-            ()=> wrapped(localList(col))
-          );
-        }catch(e){ /* fall through to the local watcher */ }
-      }
-      return watchLocal(col, wrapped);
+      /* The second argument says whether this is the final word or just what
+         was on this device while the store was still being reached. A caller
+         that only wants the rows can ignore it. */
+      const wrapped = (rows, viaDb) => fn(withSeeds(rows), !!(viaDb || (ready && !db)));
+      const rec = { col, wrapped, orderBy, dir, stop:null, viaDb:false };
+      attach(rec);
+      liveWatches.push(rec);
+      return function(){
+        const i = liveWatches.indexOf(rec);
+        if(i >= 0) liveWatches.splice(i,1);
+        if(rec.stop) rec.stop();
+      };
     },
     async put(col, id, data){
       if(db){

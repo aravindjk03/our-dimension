@@ -138,6 +138,11 @@ OD.Letters = function(renderer, post, env){
   const envGroup = new THREE.Group(); scene.add(envGroup);
   let letters = [], nodes = [];
   let focused = null;
+  /* Whether the store has actually answered yet. A shared database answers a
+     moment after you walk in — longer on a phone on mobile data — and the room
+     used to take that silence for an empty room and say so out loud, while the
+     envelopes were on their way. It waits to be told now. */
+  let loaded = false, greetPending = false;
 
   const chainMat = new THREE.MeshStandardMaterial({ color: OD.sc(0x8A8A94), roughness:.42, metalness:.85, envMap:env, envMapIntensity:1.3 });
 
@@ -240,10 +245,12 @@ OD.Letters = function(renderer, post, env){
     if(el){ el.textContent = unread ? unread : ''; el.classList.toggle('on', unread>0); }
   }
 
-  const stopWatch = Store.watch('letters', list=>{
+  const stopWatch = Store.watch('letters', (list, settled)=>{
     list.sort((a,b)=>(a.created||0)-(b.created||0));
     letters = list;
+    if(settled) loaded = true;
     rebuild();
+    greet();
   }, 'created', 'asc');
 
   /* ══════════════════════════════════════════════════════════
@@ -617,6 +624,22 @@ OD.Letters = function(renderer, post, env){
     tiltY = clamp((e.beta-45)/45, -1, 1) * .16;
   }
 
+  /* Said once per visit, and never before the store has answered. */
+  function greet(){
+    if(!greetPending || !loaded) return;
+    greetPending = false;
+    if(!letters.length){
+      gsap.delayedCall(1.0, ()=>{
+        if(letters.length) return;      // one arrived in the meantime
+        OD.toast('nothing hanging yet — tap the quill on the desk');
+      });
+      return;
+    }
+    const unread = letters.filter(l=>!l.read && !isLocked(l)).length;
+    OD.toast(unread ? (unread===1?'one unread letter':unread+' unread letters')
+                    : 'tap an envelope · the quill writes a new one');
+  }
+
   function enter(){
     Snd.bed('wind', .10);
     window.addEventListener('deviceorientation', onTilt);
@@ -626,13 +649,11 @@ OD.Letters = function(renderer, post, env){
     orbit.th = orbit.wth = 0;
     orbit.d  = orbit.wd  = BASE_D;
     apply();
-    if(!letters.length){
-      gsap.delayedCall(1.0, ()=>OD.toast('nothing hanging yet — tap the quill on the desk'));
-    } else {
-      const unread = letters.filter(l=>!l.read && !isLocked(l)).length;
-      OD.toast(unread ? (unread===1?'one unread letter':unread+' unread letters')
-                      : 'tap an envelope · the quill writes a new one');
-    }
+    greetPending = true;
+    greet();
+    /* If the store never answers at all, say something rather than nothing —
+       but only once it has had a fair chance. */
+    gsap.delayedCall(6, ()=>{ loaded = true; greet(); });
   }
   function exit(){
     Snd.bed('wind', 0);
