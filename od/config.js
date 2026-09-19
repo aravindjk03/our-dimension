@@ -28,11 +28,9 @@ OD.FIREBASE = {
                 password, and the rules name your two accounts. */
 OD.FIREBASE_MODE = 'anon';
 
-/* Only used by the 'anon' mode, and deliberately left empty here: this
-   repository is public, so the room id must not live in it. It rides in the
-   link instead — .../our-dimension/#w=<the id> — and the browser keeps it
-   once it has seen it. Anyone holding that link can read the letters, so it
-   is the link that has to stay between the two of you. */
-OD.WORLD = '';
+/* The shared world room ID.
+   Used automatically so any device opening the world lands in the same room.
+   Can also be overridden per-device via URL hash: .../our-dimension/#w=<custom-room-id> */
+OD.WORLD = 'our-dimension-aravind-diana';
 
 })(window.OD);

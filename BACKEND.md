@@ -1,13 +1,25 @@
 # Giving the world one shared memory
 
-Without this, every letter, wish and memory lives in the browser that wrote
-it. Aravind's laptop and Aravind's phone are two different worlds, and Diana
-never sees either. This is what joins them.
-
-It costs nothing: Firestore's free tier is far beyond anything two people
-writing letters will ever use.
+Without this, every letter, wish and memory lived only in the browser that wrote
+it. Aravind's laptop and Aravind's phone were two different worlds, and Diana
+never saw either. This is what joins them.
 
 ---
+
+## Zero-Config Realtime Cloud Database (Active by Default)
+
+The world now connects out-of-the-box to a built-in **Realtime Cloud Database** over secure WebSockets with retained state and offline-first local caching:
+
+1. **Multi-device sync**: When a letter is written on a laptop or phone, it is immediately synchronized to the cloud and appears in real time on any other connected device.
+2. **Persistent across visits**: Devices opened hours or days later immediately fetch the latest letters, questions, wishes, and memories upon opening.
+3. **Shared World**: Both devices automatically connect to the shared room (`our-dimension-aravind-diana`). You can also use private rooms by adding `#w=<room-id>` to the URL link (e.g. `https://aravindjk03.github.io/our-dimension/#w=your-private-key`).
+4. **No manual setup required**: It works instantly on GitHub Pages, mobile, and desktop browsers.
+
+---
+
+## Optional: Private Firebase Firestore
+
+If you prefer to host on your own private Firebase project rather than the built-in cloud sync, you can configure it anytime:
 
 ## 1. Make the project (5 minutes, and only you can do it)
 
